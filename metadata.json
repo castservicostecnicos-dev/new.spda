@@ -1,0 +1,6 @@
+{
+  "name": "Gerador de Laudos Técnicos SPDA",
+  "description": "Aplicativo profissional para vistoria técnica, organização de ensaios e geração automatizada de laudos periciais de SPDA em conformidade com a NBR 5419:2026.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
