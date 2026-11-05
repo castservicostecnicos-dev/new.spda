@@ -42,6 +42,7 @@ import { AdminTemplateModal } from './components/AdminTemplateModal';
 import { CreateReportModal } from './components/CreateReportModal';
 import { ReportsManagerModal } from './components/ReportsManagerModal';
 import { CloudflareR2Modal } from './components/CloudflareR2Modal';
+import { SendReportModal } from './components/SendReportModal';
 import { calculateTotalPages } from './utils/documentPaginator';
 import {
   FileText,
@@ -54,6 +55,7 @@ import {
   Settings,
   Download,
   Printer,
+  Send,
   Plus,
   Trash2,
   CheckCircle,
@@ -101,6 +103,7 @@ export default function App() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isReportsManagerOpen, setIsReportsManagerOpen] = useState(false);
   const [isR2ModalOpen, setIsR2ModalOpen] = useState(false);
+  const [isSendReportOpen, setIsSendReportOpen] = useState(false);
   const [savedReportsCount, setSavedReportsCount] = useState<number>(1);
   const [isSaving, setIsSaving] = useState(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
@@ -348,12 +351,10 @@ export default function App() {
     }
   };
 
-  // Print / PDF Trigger
+  // Open Send / PDF Export Modal
   const handleProceedToPrint = () => {
     setActiveTab('preview');
-    setTimeout(() => {
-      window.print();
-    }, 300);
+    setIsSendReportOpen(true);
   };
 
   // Count total photos
@@ -534,11 +535,16 @@ export default function App() {
 
           <button
             type="button"
-            onClick={() => setIsPreFlightOpen(true)}
-            className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors"
+            onClick={() => {
+              setActiveTab('preview');
+              setIsSendReportOpen(true);
+            }}
+            className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+            title="Exportar e enviar o laudo em PDF para o cliente"
           >
-            <Printer className="w-4 h-4" />
-            <span className="hidden sm:inline">PDF</span>
+            <Send className="w-4 h-4" />
+            <span className="hidden sm:inline">Enviar Laudo</span>
+            <span className="sm:hidden">Enviar</span>
           </button>
         </div>
       </header>
@@ -1604,11 +1610,12 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsPreFlightOpen(true)}
-                  className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+                  onClick={() => setIsSendReportOpen(true)}
+                  className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                  title="Enviar laudo em PDF para cliente via WhatsApp, E-mail ou baixar"
                 >
-                  <Printer className="w-4 h-4" />
-                  Emitir PDF
+                  <Send className="w-4 h-4" />
+                  Enviar / Exportar PDF
                 </button>
               </div>
             </div>
@@ -1685,6 +1692,17 @@ export default function App() {
         onSyncComplete={(msg) => {
           setExportMessage(msg);
           setTimeout(() => setExportMessage(null), 5000);
+        }}
+      />
+
+      <SendReportModal
+        isOpen={isSendReportOpen}
+        onClose={() => setIsSendReportOpen(false)}
+        report={report}
+        onOpenR2Sync={() => setIsR2ModalOpen(true)}
+        onTriggerBrowserPrint={() => {
+          setActiveTab('preview');
+          setTimeout(() => window.print(), 300);
         }}
       />
     </div>

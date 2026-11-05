@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { SpdaReport } from '../types/spda';
-import { CheckCircle2, AlertTriangle, XCircle, Printer, X, Download, FileText, Cloud } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle, Printer, X, Download, FileText, Cloud, Send } from 'lucide-react';
 import { calculateTotalPages } from '../utils/documentPaginator';
 
 interface PreFlightCheckModalProps {
@@ -318,8 +318,8 @@ export const PreFlightCheckModal: React.FC<PreFlightCheckModalProps> = ({
               disabled={errorCount > 0}
               className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-xs flex items-center justify-center gap-1.5 transition-colors"
             >
-              <Printer className="w-4 h-4" />
-              Imprimir / PDF
+              <Send className="w-4 h-4" />
+              Enviar / Exportar PDF
             </button>
           </div>
         </div>
