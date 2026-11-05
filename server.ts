@@ -36,6 +36,35 @@ app.post('/api/ocr-miliohmimetro', async (req, res) => {
       return res.status(400).json({ error: 'Nenhuma imagem fornecida.' });
     }
 
+    // 1. Check if the image is an SVG or URL-encoded SVG (e.g., sample data)
+    if (
+      typeof imageBase64 === 'string' &&
+      (imageBase64.includes('image/svg+xml') ||
+        imageBase64.includes('%3Csvg') ||
+        imageBase64.trim().startsWith('<svg'))
+    ) {
+      try {
+        const decodedSvg = decodeURIComponent(imageBase64);
+        let match = decodedSvg.match(/<text[^>]*>\s*([0-9]+(?:[.,][0-9]+)?)\s*(mΩ|Ω|kΩ|mOhm|Ohm)?\s*<\/text>/i);
+        if (!match) {
+          match = decodedSvg.match(/([0-9]+(?:[.,][0-9]+)?)\s*(mΩ|Ω|kΩ|mOhm|Ohm)/i);
+        }
+        if (match) {
+          const num = match[1].replace(',', '.');
+          const unit = match[2] || 'Ω';
+          return res.json({
+            success: true,
+            leitura: num,
+            unidade: unit,
+            confianca: 'ALTA',
+            legendaSugerida: `Ponto de Continuidade - ${num} ${unit}`,
+          });
+        }
+      } catch (svgErr) {
+        console.warn('Erro ao decodificar SVG:', svgErr);
+      }
+    }
+
     if (!genAI) {
       return res.status(503).json({
         error: 'Chave GEMINI_API_KEY não configurada no servidor.',
@@ -43,12 +72,46 @@ app.post('/api/ocr-miliohmimetro', async (req, res) => {
       });
     }
 
-    // Strip prefix like "data:image/jpeg;base64," if present
-    const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+    // 2. Clean and extract base64 data and mime type
+    let cleanBase64 = String(imageBase64);
+    let targetMimeType = mimeType || 'image/jpeg';
+
+    if (cleanBase64.startsWith('data:')) {
+      const commaIndex = cleanBase64.indexOf(',');
+      if (commaIndex !== -1) {
+        const header = cleanBase64.substring(0, commaIndex);
+        const mimeMatch = header.match(/data:([^;]+)/);
+        if (mimeMatch) {
+          targetMimeType = mimeMatch[1];
+        }
+        cleanBase64 = cleanBase64.substring(commaIndex + 1);
+      }
+    }
+
+    // Remove any whitespace or line breaks
+    cleanBase64 = cleanBase64.replace(/\s+/g, '');
+
+    // Normalize mime type for Gemini
+    if (
+      targetMimeType === 'image/svg+xml' ||
+      !targetMimeType.startsWith('image/')
+    ) {
+      targetMimeType = 'image/jpeg';
+    }
+
+    // Check if cleanBase64 is a valid base64 string
+    const base64Regex = /^[A-Za-z0-9+/=]+$/;
+    if (!base64Regex.test(cleanBase64) || cleanBase64.length < 16) {
+      return res.status(400).json({
+        success: false,
+        error: 'Formato de imagem inválido para leitura ótica.',
+        leitura: '',
+      });
+    }
 
     const imagePart = {
       inlineData: {
-        mimeType,
+        mimeType: targetMimeType,
         data: cleanBase64,
       },
     };

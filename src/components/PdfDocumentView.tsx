@@ -109,11 +109,11 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
                       </div>
                     )}
                   </div>
-                ) : (
+                ) : photo.categoria === 'ensaio_miliohmimetro' ? (
                   <span className="text-[7.5px] font-medium text-slate-900 block truncate">
                     {photo.legenda}
                   </span>
-                )}
+                ) : null}
               </div>
             </div>
           );

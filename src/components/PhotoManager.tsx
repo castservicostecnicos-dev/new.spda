@@ -173,10 +173,12 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
           } catch (ocrErr) {
             console.warn('OCR em background não concluído para a foto:', ocrErr);
           }
-        } else if (activeCategory === 'spda_captores') {
-          defaultCaption = 'Captor tipo Franklin';
-        } else if (activeCategory === 'quadros_dps') {
-          defaultCaption = 'Quadro de Distribuição (QGBT)';
+        } else if (
+          activeCategory === 'spda_captores' ||
+          activeCategory === 'quadros_dps' ||
+          activeCategory === 'area_comum'
+        ) {
+          defaultCaption = '';
         }
 
         newPhotos.push({
@@ -696,37 +698,44 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
                     </div>
                   )}
 
-                  {/* Caption Input */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-600 block">
-                      Legenda no Laudo
-                    </label>
-                    <input
-                      type="text"
-                      value={photo.legenda}
-                      onChange={(e) => handleUpdateItem(photo.id, { legenda: e.target.value })}
-                      className="w-full border border-slate-300 rounded p-1 text-[11px] focus:ring-1 focus:ring-red-500 font-medium text-slate-900"
-                      placeholder="Ex: Captor tipo Franklin"
-                    />
-                  </div>
+                  {/* For Ensaio: Caption with meter reading. For SPDA & Quadros: captions eliminated, only yellow alert */}
+                  {activeCategory === 'ensaio_miliohmimetro' ? (
+                    <>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-600 block">
+                          Legenda no Laudo
+                        </label>
+                        <input
+                          type="text"
+                          value={photo.legenda}
+                          onChange={(e) => handleUpdateItem(photo.id, { legenda: e.target.value })}
+                          className="w-full border border-slate-300 rounded p-1 text-[11px] focus:ring-1 focus:ring-red-500 font-medium text-slate-900"
+                          placeholder="Ex: Ponto #1 - 0.124 Ω"
+                        />
+                      </div>
 
-                  {/* Preset caption chips (contextual) */}
-                  <div className="flex flex-wrap gap-1">
-                    {PRESET_CAPTIONS[activeCategory]?.slice(0, 3).map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        onClick={() =>
-                          handleUpdateItem(photo.id, {
-                            legenda: preset,
-                          })
-                        }
-                        className="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded truncate max-w-full"
-                      >
-                        {preset}
-                      </button>
-                    ))}
-                  </div>
+                      <div className="flex flex-wrap gap-1">
+                        {PRESET_CAPTIONS[activeCategory]?.slice(0, 3).map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() =>
+                              handleUpdateItem(photo.id, {
+                                legenda: preset,
+                              })
+                            }
+                            className="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded truncate max-w-full"
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-[9.5px] text-slate-500 italic bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                      Legenda eliminada nesta seção — apenas o alerta em amarelo será exibido se houver defeito.
+                    </div>
+                  )}
 
                   {/* Defect Picker (Highlight Selector) */}
                   <div className="pt-2 border-t border-slate-100 space-y-1.5">

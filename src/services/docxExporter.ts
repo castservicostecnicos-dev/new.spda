@@ -186,7 +186,7 @@ export async function generateReportDocxBlob(
             );
           }
 
-          // Caption with defect alert highlight
+          // Caption or defect alert tag
           const defectText =
             photo.tipoDefeito ||
             (photo.destaqueAlerta
@@ -198,34 +198,57 @@ export async function generateReportDocxBlob(
             !!defectText ||
             photo.destaqueAlerta ||
             photo.legenda.toUpperCase().includes('FALTA EQUIPOTENCIALIZAR');
-          const captionText = defectText ? `⚠ ${defectText}` : photo.legenda;
 
-          cellParagraphs.push(
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              spacing: { before: 50, after: 100 },
-              children: [
-                new TextRun({
-                  text: captionText,
-                  size: 15, // 7.5pt
-                  bold: isAlert,
-                  color: isAlert ? '92400E' : '1F2937',
-                  font: 'Arial',
-                }),
-                ...(photo.observacao
-                  ? [
-                      new TextRun({
-                        text: ` (${photo.observacao})`,
-                        size: 13,
-                        italics: true,
-                        color: '78350F',
-                        font: 'Arial',
-                      }),
-                    ]
-                  : []),
-              ],
-            })
-          );
+          const isSpdaOrQuadros =
+            photo.categoria === 'spda_captores' ||
+            photo.categoria === 'quadros_dps' ||
+            photo.categoria === 'area_comum';
+
+          if (isAlert) {
+            cellParagraphs.push(
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { before: 40, after: 80 },
+                children: [
+                  new TextRun({
+                    text: `⚠ ${defectText || 'FALTA EQUIPOTENCIALIZAR'}`,
+                    size: 15, // 7.5pt
+                    bold: true,
+                    color: '92400E',
+                    font: 'Arial',
+                  }),
+                  ...(photo.observacao
+                    ? [
+                        new TextRun({
+                          text: ` (${photo.observacao})`,
+                          size: 13,
+                          italics: true,
+                          color: '78350F',
+                          font: 'Arial',
+                        }),
+                      ]
+                    : []),
+                ],
+              })
+            );
+          } else if (!isSpdaOrQuadros && photo.legenda) {
+            // For Pontos de Inspeção (ensaio_miliohmimetro), display the meter reading / point caption
+            cellParagraphs.push(
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { before: 40, after: 80 },
+                children: [
+                  new TextRun({
+                    text: photo.legenda,
+                    size: 15,
+                    bold: false,
+                    color: '1F2937',
+                    font: 'Arial',
+                  }),
+                ],
+              })
+            );
+          }
 
           cells.push(
             new TableCell({
