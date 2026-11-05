@@ -44,6 +44,7 @@ import { ReportsManagerModal } from './components/ReportsManagerModal';
 import { CloudflareR2Modal } from './components/CloudflareR2Modal';
 import { SendReportModal } from './components/SendReportModal';
 import { calculateTotalPages } from './utils/documentPaginator';
+import { upgradeAndRepairReport } from './utils/reportRepairMigration';
 import {
   FileText,
   Building,
@@ -120,7 +121,7 @@ export default function App() {
     }
   };
 
-  // Load saved draft or last active report on mount
+  // Load saved draft or last active report on mount, ensuring automatic upgrade to 3x4
   useEffect(() => {
     const initLoad = async () => {
       try {
@@ -132,16 +133,19 @@ export default function App() {
           target = all[0];
         }
 
-        if (target) {
-          setReport(target);
-          if (target.torres.length > 0) {
-            setSelectedTowerId(target.torres[0].id);
-          }
-        } else {
-          // Save default initial report to local DB so it is preserved
-          await saveReportToDb(report);
-          localStorage.setItem('spda_last_report_id', report.id);
-          setSavedReportsCount(1);
+        const reportToUpgrade = target || report;
+        const { report: repaired, modified } = upgradeAndRepairReport(reportToUpgrade);
+
+        setReport(repaired);
+        if (repaired.torres.length > 0) {
+          setSelectedTowerId(repaired.torres[0].id);
+        }
+
+        if (modified || !target) {
+          // Permanently persist the 3x4 upgraded report in IndexedDB
+          await saveReportToDb(repaired);
+          localStorage.setItem('spda_last_report_id', repaired.id);
+          setSavedReportsCount(Math.max(1, all.length));
         }
       } catch (err) {
         console.warn('Could not load from DB:', err);
@@ -217,14 +221,31 @@ export default function App() {
   };
 
   const handleSelectReport = (selected: SpdaReport) => {
-    setReport(selected);
-    if (selected.torres && selected.torres.length > 0) {
-      setSelectedTowerId(selected.torres[0].id);
+    const { report: repaired, modified } = upgradeAndRepairReport(selected);
+    setReport(repaired);
+    if (repaired.torres && repaired.torres.length > 0) {
+      setSelectedTowerId(repaired.torres[0].id);
     }
-    localStorage.setItem('spda_last_report_id', selected.id);
+    localStorage.setItem('spda_last_report_id', repaired.id);
+    if (modified) {
+      saveReportToDb(repaired).catch(console.warn);
+    }
     refreshReportsCount();
-    setExportMessage(`Laudo "${selected.cliente.nomeEmpreendimento || selected.cliente.cliente}" carregado para edição.`);
+    setExportMessage(`Laudo "${repaired.cliente.nomeEmpreendimento || repaired.cliente.cliente}" carregado e sincronizado no formato 3x4.`);
     setTimeout(() => setExportMessage(null), 3000);
+  };
+
+  // Manual Trigger to guarantee active report in editing is 100% upgraded to 3x4
+  const handleUpgradeCurrentReport = async () => {
+    const { report: repaired, modified, details } = upgradeAndRepairReport(report);
+    setReport(repaired);
+    await saveReportToDb(repaired);
+    setExportMessage(
+      modified
+        ? `Laudo em edição atualizado com sucesso! ${details.length > 0 ? details.join(', ') : 'Fotos convertidas para 3x4 e visores sincronizados'}.`
+        : 'O laudo em edição já está 100% atualizado com fotos retangulares 3x4 e visores legíveis.'
+    );
+    setTimeout(() => setExportMessage(null), 5000);
   };
 
   // Total pages
@@ -1241,7 +1262,36 @@ export default function App() {
 
         {/* TAB 4: FOTOS POR TORRE */}
         {activeTab === 'fotos' && (
-          <div className="no-print max-w-5xl w-full mx-auto p-4 sm:p-6">
+          <div className="no-print max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-4">
+            <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Eye className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xs text-emerald-950 flex items-center gap-2">
+                    <span>Fotos 3x4 &amp; Leitura Ampliada de Visores Ativadas</span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-mono font-bold">
+                      Laudo em Edição Sincronizado
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-emerald-800 mt-0.5">
+                    Fotos exibidas no formato retangular 3x4 (sem achatamento). Clique sobre qualquer foto ou em <strong>Inspecionar Visor (Lupa)</strong> para ampliar a imagem e ler os dígitos do micrômetro/miliohmímetro com alta nitidez.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleUpgradeCurrentReport}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-xs"
+                title="Sincroniza todas as fotos deste laudo em edição para o formato retangular 3x4 e carrega leituras dos visores nas legendas"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Atualizar Fotos do Laudo</span>
+              </button>
+            </div>
+
             <PhotoManager
               torres={report.torres}
               areaComum={report.areaComum}

@@ -79,7 +79,7 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
         {photos.map((photo, colIndex) => {
           if (!photo) {
             // Standardized empty slot: preserved width without stretching other cells!
-            return <div key={`empty-${colIndex}`} className="w-full aspect-square" />;
+            return <div key={`empty-${colIndex}`} className="w-full aspect-[3/4]" />;
           }
 
           return (
@@ -87,8 +87,8 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
               key={photo.id || `photo-${colIndex}`}
               className="flex flex-col items-center w-full"
             >
-              {/* Photo Frame - Standard fixed dimension maximizing page area */}
-              <div className="w-full aspect-square bg-white border border-slate-300 rounded-[2px] overflow-hidden flex items-center justify-center relative shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+              {/* Photo Frame - Standard 3:4 rectangular ratio preserving image sharpness without flattening */}
+              <div className="w-full aspect-[3/4] bg-white border border-slate-300 rounded-[2px] overflow-hidden flex items-center justify-center relative shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
                 <img
                   src={photo.previewUrl}
                   alt={photo.legenda || 'Registro fotográfico'}

@@ -27,10 +27,41 @@ import { buildTowerPages } from '../utils/documentPaginator';
 import { getReportFileName } from './pdfExporter';
 
 /**
- * Helper to convert base64 or blob URL into Uint8Array for docx ImageRun
+ * Helper to convert base64 or blob URL into Uint8Array for docx ImageRun.
+ * If the image is SVG, it is rasterized onto a high-resolution 3:4 canvas (600x800)
+ * so Microsoft Word can render it natively as PNG without errors.
  */
 async function urlToUint8Array(url: string): Promise<Uint8Array | null> {
   try {
+    if (url.startsWith('data:image/svg+xml') || url.includes('.svg')) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 600;
+          canvas.height = 800;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(null);
+            return;
+          }
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, 600, 800);
+          ctx.drawImage(img, 0, 0, 600, 800);
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              resolve(null);
+              return;
+            }
+            blob.arrayBuffer().then((ab) => resolve(new Uint8Array(ab))).catch(() => resolve(null));
+          }, 'image/png');
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+      });
+    }
+
     const res = await fetch(url);
     const blob = await res.blob();
     const arrayBuffer = await blob.arrayBuffer();
@@ -230,8 +261,8 @@ export async function generateReportDocxBlob(
                 new ImageRun({
                   data: imgBytes,
                   transformation: {
-                    width: 98, // Fits 5 columns across A4 width without wrapping
-                    height: 98,
+                    width: 93, // ~24.6mm (Fits 5 columns with margins)
+                    height: 124, // ~32.8mm (Exact 3:4 rectangular ratio: 93/124 = 3/4)
                   },
                   type: 'png',
                 }),

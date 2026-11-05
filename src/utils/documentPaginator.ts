@@ -54,17 +54,17 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
   let currentCapacityUsed = 0;
   let currentPhotoRowsOnPage = 0;
 
-  // Maximum photo rows allowed on any page: up to 6 lines per page
-  const MAX_ROWS_PER_PAGE = 6;
+  // Maximum photo rows allowed on any page for 3x4 rectangular photos: up to 5 lines per page
+  const MAX_ROWS_PER_PAGE = 5;
 
-  // Calibrated vertical page capacity:
-  // - A photo row costs 1.0 unit.
+  // Calibrated vertical page capacity for 3x4 rectangular photos:
+  // - A 3x4 photo row costs 1.0 unit.
   // - A sub_header banner costs 0.35 unit.
   // - A tower_header costs 0.55 unit.
-  // - 6 photo rows with 0 headers: 6 * 1.0 = 6.00 <= 6.35 (FITS: fills the whole page!)
-  // - 6 photo rows with 1 compact sub_header: 0.35 + 6.0 = 6.35 <= 6.35 (FITS: fills page without gap!)
-  // - 6 photo rows with tower_header + sub_header: 0.55 + 0.35 + 6.0 = 6.90 > 6.35 (DOES NOT FIT: eliminates 6th row and keeps 5 rows!)
-  const MAX_CAPACITY_PER_PAGE = 6.35;
+  // - 4 photo rows with 0 headers: 4 * 1.0 = 4.0 <= 4.35 (FITS cleanly without gap)
+  // - 4 photo rows with 1 compact sub_header: 0.35 + 4.0 = 4.35 <= 4.35 (FITS page without gap)
+  // - 4 photo rows with tower_header + sub_header: 0.55 + 0.35 + 4.0 = 4.90 > 4.35 (Rolls back and leaves 3 rows, pushing 4th to next page)
+  const MAX_CAPACITY_PER_PAGE = 4.35;
 
   function pushPage() {
     if (currentPageBlocks.length > 0) {

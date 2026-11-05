@@ -19,9 +19,11 @@ import {
   CheckCircle2,
   RefreshCw,
   Gauge,
+  Eye,
 } from 'lucide-react';
 import { saveOriginalPhoto, createOptimizedPreview } from '../services/storage';
 import { detectMiliohmimetroReading } from '../services/miliohmimetroOcr';
+import { MeterZoomModal } from './MeterZoomModal';
 
 interface PhotoManagerProps {
   torres: Tower[];
@@ -113,6 +115,7 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
   const [processingProgress, setProcessingProgress] = useState('');
   const [readingOcrId, setReadingOcrId] = useState<string | null>(null);
   const [batchOcrProgress, setBatchOcrProgress] = useState<string | null>(null);
+  const [inspectingPhotoIndex, setInspectingPhotoIndex] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
@@ -629,29 +632,50 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
                     </div>
                   </div>
 
-                  {/* Photo Thumbnail */}
-                  <div className="relative aspect-square w-full rounded bg-slate-100 overflow-hidden border border-slate-200">
+                  {/* Photo Thumbnail - 3:4 rectangular ratio with click-to-zoom */}
+                  <div
+                    onClick={() => setInspectingPhotoIndex(idx)}
+                    className="relative aspect-[3/4] w-full rounded bg-slate-100 overflow-hidden border border-slate-200 cursor-pointer group/thumb shadow-xs"
+                    title="Clique para ampliar e ler o visor com nitidez"
+                  >
                     <img
                       src={photo.previewUrl}
                       alt={photo.legenda}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-200"
                     />
+
+                    {/* Magnifier overlay on hover */}
+                    <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white font-bold text-[11px] backdrop-blur-[1px]">
+                      <Eye className="w-5 h-5 text-emerald-300 drop-shadow" />
+                      <span>Ampliar Visor</span>
+                    </div>
 
                     {/* Prominent Yellow Highlight Badge when Defect is Active */}
                     {hasDefect && (
-                      <div className="absolute top-1 left-1 right-1 bg-[#fef3c7] text-[#92400e] border border-[#fde68a] rounded text-[8.5px] font-extrabold px-1.5 py-0.5 text-center shadow-xs truncate">
+                      <div className="absolute top-1 left-1 right-1 bg-[#fef3c7] text-[#92400e] border border-[#fde68a] rounded text-[8.5px] font-extrabold px-1.5 py-0.5 text-center shadow-xs truncate z-10">
                         ⚠ {photo.tipoDefeito || 'FALTA EQUIPOTENCIALIZAR'}
                       </div>
                     )}
 
                     {/* Detected meter value badge */}
                     {photo.leituraMiliohmimetro && (
-                      <div className="absolute bottom-1 left-1 right-1 bg-slate-900/90 text-white rounded text-[8.5px] font-mono font-bold px-1 py-0.5 text-center truncate flex items-center justify-center gap-1">
+                      <div className="absolute bottom-1 left-1 right-1 bg-slate-950/95 text-emerald-300 border border-emerald-500/40 rounded text-[9px] font-mono font-bold px-1.5 py-0.5 text-center truncate flex items-center justify-center gap-1 z-10 shadow-md">
                         <Gauge className="w-3 h-3 text-emerald-400" />
                         <span>Visor: {photo.leituraMiliohmimetro}</span>
                       </div>
                     )}
                   </div>
+
+                  {/* Explicit Button to Inspect & Zoom on Meter Screen */}
+                  <button
+                    type="button"
+                    onClick={() => setInspectingPhotoIndex(idx)}
+                    className="w-full py-1 px-2 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300 text-slate-700 rounded text-[10.5px] font-bold flex items-center justify-center gap-1.5 transition-colors border border-slate-200 shadow-2xs"
+                    title="Abre a lupa ampliada para ler o visor e marcar o valor"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Inspecionar Visor (Lupa)</span>
+                  </button>
 
                   {/* Meter Reading Input & AI Read Button for Ensaio */}
                   {activeCategory === 'ensaio_miliohmimetro' && (
@@ -681,7 +705,7 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
                         <input
                           type="text"
                           value={photo.leituraMiliohmimetro || ''}
-                          placeholder="Ex: 23.5 mΩ"
+                          placeholder="Ex: 23.5 mΩ ou 0.104 Ω"
                           onChange={(e) => {
                             const val = e.target.value;
                             const newCaption = val
@@ -692,7 +716,7 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
                               legenda: newCaption,
                             });
                           }}
-                          className="flex-1 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-[10.5px] font-mono font-semibold text-slate-900 focus:ring-1 focus:ring-red-500"
+                          className="flex-1 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-[10.5px] font-mono font-bold text-emerald-700 focus:ring-1 focus:ring-emerald-500"
                         />
                       </div>
                     </div>
@@ -801,6 +825,24 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
             })}
           </div>
         </div>
+      )}
+
+      {/* Interactive Meter Display Inspection & Zoom Magnifier Modal */}
+      {inspectingPhotoIndex !== null && (
+        <MeterZoomModal
+          isOpen={inspectingPhotoIndex !== null}
+          onClose={() => setInspectingPhotoIndex(null)}
+          photo={activePhotos[inspectingPhotoIndex] || null}
+          photoIndex={inspectingPhotoIndex + 1}
+          totalPhotos={activePhotos.length}
+          towerName={isCommon ? 'Área Comum' : currentTower?.nome || 'Torre'}
+          onUpdatePhoto={handleUpdateItem}
+          onNavigate={(newIdx) => {
+            if (newIdx >= 0 && newIdx < activePhotos.length) {
+              setInspectingPhotoIndex(newIdx);
+            }
+          }}
+        />
       )}
     </div>
   );
