@@ -98,9 +98,11 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
 
               {/* Caption immediately below photo */}
               <div className="w-full text-center mt-0.5 px-0.5 leading-tight">
-                {photo.destaqueAlerta || photo.legenda.includes('FALTA EQUIPOTENCIALIZAR') ? (
-                  <div className="inline-block bg-[#fef3c7] text-[#92400e] border border-[#fde68a] px-1 py-0.2 rounded-[2px] text-[7px] font-bold uppercase tracking-tight">
-                    ⚠ FALTA EQUIPOTENCIALIZAR
+                {photo.destaqueAlerta || photo.tipoDefeito || photo.legenda.toUpperCase().includes('FALTA EQUIPOTENCIALIZAR') ? (
+                  <div className="inline-block bg-[#fef3c7] text-[#92400e] border border-[#fde68a] px-1 py-0.2 rounded-[2px] text-[7px] font-bold uppercase tracking-tight max-w-full">
+                    <span className="truncate block">
+                      ⚠ {photo.tipoDefeito || (photo.legenda.toUpperCase().includes('FALTA') ? photo.legenda : 'FALTA EQUIPOTENCIALIZAR')}
+                    </span>
                     {photo.observacao && (
                       <div className="text-[6.5px] normal-case font-medium text-amber-900 block truncate">
                         {photo.observacao}

@@ -107,7 +107,12 @@ export async function exportOriginalPhotosZip(
       metadataText += `  Torre: ${towerName}\n`;
       metadataText += `  Categoria: ${photo.categoria}\n`;
       metadataText += `  Legenda: ${photo.legenda || 'Sem legenda'}\n`;
-      if (photo.destaqueAlerta) metadataText += `  Alerta: SIM (⚠ FALTA EQUIPOTENCIALIZAR)\n`;
+      if (photo.tipoDefeito || photo.destaqueAlerta) {
+        metadataText += `  Alerta / Defeito: SIM (⚠ ${photo.tipoDefeito || 'FALTA EQUIPOTENCIALIZAR'})\n`;
+      }
+      if (photo.leituraMiliohmimetro) {
+        metadataText += `  Leitura do Visor: ${photo.leituraMiliohmimetro}\n`;
+      }
       if (photo.observacao) metadataText += `  Observação: ${photo.observacao}\n`;
       metadataText += `\n`;
     }

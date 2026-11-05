@@ -53,12 +53,12 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 }
 
 /**
- * Exports complete SPDA Report to an editable Microsoft Word (.docx) document
+ * Generates the complete SPDA Report as a Word (.docx) Blob
  */
-export async function exportReportToDocx(
+export async function generateReportDocxBlob(
   report: SpdaReport,
   onProgress?: (msg: string) => void
-): Promise<void> {
+): Promise<Blob> {
   if (onProgress) onProgress('Preparando estrutura do documento Word (.docx)...');
 
   // Convert aerial and facade photos if available
@@ -186,10 +186,19 @@ export async function exportReportToDocx(
             );
           }
 
-          // Caption
+          // Caption with defect alert highlight
+          const defectText =
+            photo.tipoDefeito ||
+            (photo.destaqueAlerta
+              ? photo.legenda.toUpperCase().includes('FALTA')
+                ? photo.legenda
+                : 'FALTA EQUIPOTENCIALIZAR'
+              : '');
           const isAlert =
+            !!defectText ||
             photo.destaqueAlerta ||
             photo.legenda.toUpperCase().includes('FALTA EQUIPOTENCIALIZAR');
+          const captionText = defectText ? `⚠ ${defectText}` : photo.legenda;
 
           cellParagraphs.push(
             new Paragraph({
@@ -197,7 +206,7 @@ export async function exportReportToDocx(
               spacing: { before: 50, after: 100 },
               children: [
                 new TextRun({
-                  text: photo.legenda,
+                  text: captionText,
                   size: 15, // 7.5pt
                   bold: isAlert,
                   color: isAlert ? '92400E' : '1F2937',
@@ -897,6 +906,17 @@ export async function exportReportToDocx(
   if (onProgress) onProgress('Empacotando arquivo Word (.docx)...');
 
   const blob = await Packer.toBlob(doc);
+  return blob;
+}
+
+/**
+ * Generates and triggers download of the Word (.docx) file
+ */
+export async function exportReportToDocx(
+  report: SpdaReport,
+  onProgress?: (msg: string) => void
+): Promise<void> {
+  const blob = await generateReportDocxBlob(report, onProgress);
 
   // Trigger download
   const safeTitle = (report.cliente.nomeEmpreendimento || report.cliente.cliente || 'Laudo_SPDA')

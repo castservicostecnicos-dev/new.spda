@@ -41,6 +41,7 @@ import { PreFlightCheckModal } from './components/PreFlightCheckModal';
 import { AdminTemplateModal } from './components/AdminTemplateModal';
 import { CreateReportModal } from './components/CreateReportModal';
 import { ReportsManagerModal } from './components/ReportsManagerModal';
+import { CloudflareR2Modal } from './components/CloudflareR2Modal';
 import { calculateTotalPages } from './utils/documentPaginator';
 import {
   FileText,
@@ -63,6 +64,7 @@ import {
   Save,
   FolderArchive,
   Building2,
+  Cloud,
 } from 'lucide-react';
 
 export default function App() {
@@ -98,6 +100,7 @@ export default function App() {
   const [isAdminTemplateOpen, setIsAdminTemplateOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isReportsManagerOpen, setIsReportsManagerOpen] = useState(false);
+  const [isR2ModalOpen, setIsR2ModalOpen] = useState(false);
   const [savedReportsCount, setSavedReportsCount] = useState<number>(1);
   const [isSaving, setIsSaving] = useState(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
@@ -520,6 +523,17 @@ export default function App() {
 
           <button
             type="button"
+            onClick={() => setIsR2ModalOpen(true)}
+            className="px-2.5 sm:px-3 py-1.5 sm:py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors"
+            title="Sincronizar laudo (.docx) e fotos originais no bucket do Cloudflare R2"
+          >
+            <Cloud className="w-4 h-4" />
+            <span className="hidden sm:inline">Cloudflare R2</span>
+            <span className="sm:hidden">R2</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setIsPreFlightOpen(true)}
             className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors"
           >
@@ -661,7 +675,20 @@ export default function App() {
             </div>
 
             {/* Quick Action Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div
+                onClick={() => setIsR2ModalOpen(true)}
+                className="bg-white border border-slate-200 hover:border-orange-500 rounded-xl p-5 shadow-2xs cursor-pointer transition-all hover:shadow-sm"
+              >
+                <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center mb-3">
+                  <Cloud className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-sm text-slate-900">Cloudflare R2</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Sincronize laudos em .docx e fotos originais organizadas por pastas no bucket R2.
+                </p>
+              </div>
+
               <div
                 onClick={() => setIsReportsManagerOpen(true)}
                 className="bg-white border border-slate-200 hover:border-red-400 rounded-xl p-5 shadow-2xs cursor-pointer transition-all hover:shadow-sm"
@@ -1620,6 +1647,7 @@ export default function App() {
         onProceedToPrint={handleProceedToPrint}
         onExportPhotosZip={handleSaveToDevice}
         onExportDocx={handleExportDocx}
+        onOpenR2Sync={() => setIsR2ModalOpen(true)}
       />
 
       <AdminTemplateModal
@@ -1648,6 +1676,16 @@ export default function App() {
         currentReportId={report.id}
         onSelectReport={handleSelectReport}
         onOpenCreateNew={() => setIsCreateModalOpen(true)}
+      />
+
+      <CloudflareR2Modal
+        isOpen={isR2ModalOpen}
+        onClose={() => setIsR2ModalOpen(false)}
+        report={report}
+        onSyncComplete={(msg) => {
+          setExportMessage(msg);
+          setTimeout(() => setExportMessage(null), 5000);
+        }}
       />
     </div>
   );

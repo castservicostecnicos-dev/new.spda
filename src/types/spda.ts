@@ -82,7 +82,9 @@ export interface PhotoItem {
   torreId: string; // ID da torre ou 'area_comum'
   categoria: PhotoCategory;
   legenda: string;
-  destaqueAlerta?: boolean; // ex: ⚠ FALTA EQUIPOTENCIALIZAR
+  destaqueAlerta?: boolean; // Se marcado, exibe o destaque em amarelo
+  tipoDefeito?: string; // Defeito específico: ex: "FALTA DPS", "CONECTOR OXIDADO", "FALTA EQUIPOTENCIALIZAR", etc.
+  leituraMiliohmimetro?: string; // Leitura captada automaticamente do visor (ex: "23.5 mΩ")
   observacao?: string;
   previewUrl: string; // Base64 ou Blob URL para visualização
   storageKey?: string; // Chave no IndexedDB para a imagem original em alta resolução

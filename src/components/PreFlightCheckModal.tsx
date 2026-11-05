@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { SpdaReport } from '../types/spda';
-import { CheckCircle2, AlertTriangle, XCircle, Printer, X, Download, FileText } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle, Printer, X, Download, FileText, Cloud } from 'lucide-react';
 import { calculateTotalPages } from '../utils/documentPaginator';
 
 interface PreFlightCheckModalProps {
@@ -15,6 +15,7 @@ interface PreFlightCheckModalProps {
   onProceedToPrint: () => void;
   onExportPhotosZip: () => void;
   onExportDocx: () => void;
+  onOpenR2Sync?: () => void;
 }
 
 interface VerificationItem {
@@ -32,6 +33,7 @@ export const PreFlightCheckModal: React.FC<PreFlightCheckModalProps> = ({
   onProceedToPrint,
   onExportPhotosZip,
   onExportDocx,
+  onOpenR2Sync,
 }) => {
   if (!isOpen) return null;
 
@@ -281,6 +283,20 @@ export const PreFlightCheckModal: React.FC<PreFlightCheckModalProps> = ({
             >
               Voltar
             </button>
+            {onOpenR2Sync && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenR2Sync();
+                }}
+                disabled={errorCount > 0}
+                className="px-4 py-2 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-xs flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Cloud className="w-4 h-4" />
+                Sincronizar no Cloudflare R2
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
