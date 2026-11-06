@@ -135,7 +135,7 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
       }}
     >
       <div
-        className="a4-page relative bg-white p-[10mm] flex flex-col justify-between"
+        className="a4-page relative bg-white px-[10mm] pt-[7mm] pb-[5mm] flex flex-col justify-between"
         style={{
           width: `${a4WidthPx}px`,
           height: `${a4HeightPx}px`,
@@ -615,7 +615,9 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
                   return (
                     <h3
                       key={`th-${bIdx}`}
-                      className="font-bold text-[11px] text-slate-900 mb-0.5"
+                      className={`font-bold text-[11px] text-slate-900 mb-0.5 ${
+                        bIdx > 0 ? 'mt-1.5 pt-1 border-t border-slate-300' : ''
+                      }`}
                     >
                       {block.title}
                     </h3>

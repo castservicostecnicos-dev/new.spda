@@ -54,17 +54,20 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
   let currentCapacityUsed = 0;
   let currentPhotoRowsOnPage = 0;
 
-  // Maximum photo rows allowed on any page for 3x4 rectangular photos: up to 5 lines per page
+  // Maximum photo rows allowed on any single page: up to 5 full lines of photos
   const MAX_ROWS_PER_PAGE = 5;
 
-  // Calibrated vertical page capacity for 3x4 rectangular photos:
-  // - A 3x4 photo row costs 1.0 unit.
-  // - A sub_header banner costs 0.35 unit.
-  // - A tower_header costs 0.55 unit.
-  // - 4 photo rows with 0 headers: 4 * 1.0 = 4.0 <= 4.35 (FITS cleanly without gap)
-  // - 4 photo rows with 1 compact sub_header: 0.35 + 4.0 = 4.35 <= 4.35 (FITS page without gap)
-  // - 4 photo rows with tower_header + sub_header: 0.55 + 0.35 + 4.0 = 4.90 > 4.35 (Rolls back and leaves 3 rows, pushing 4th to next page)
-  const MAX_CAPACITY_PER_PAGE = 4.35;
+  // Calibrated vertical page capacity for dense, compact A4 layout without blank gaps:
+  // - A 3x4 photo row = 1.0 unit (~185px)
+  // - A sub_header banner = 0.12 unit (~20px)
+  // - A tower_header = 0.10 unit (~18px)
+  // - 5 full photo rows = 5.0 <= 5.15 (Fits tightly and cleanly on A4)
+  // - 4 photo rows + 1 tower header + 1 subheader = 4.0 + 0.10 + 0.12 = 4.22 <= 5.15 (Fits with room)
+  // - 4 photo rows + 2 tower headers + 2 subheaders = 4.0 + 0.44 = 4.44 <= 5.15 (Fits: Tower 1 ends & Tower 2 starts on same page)
+  const MAX_CAPACITY_PER_PAGE = 5.15;
+  const TOWER_HEADER_COST = 0.10;
+  const SUB_HEADER_COST = 0.12;
+  const PHOTO_ROW_COST = 1.0;
 
   function pushPage() {
     if (currentPageBlocks.length > 0) {
@@ -83,12 +86,11 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
     if (currentPhotoRowsOnPage >= MAX_ROWS_PER_PAGE) {
       return false;
     }
-    return currentCapacityUsed + 1.0 <= MAX_CAPACITY_PER_PAGE;
+    return currentCapacityUsed + PHOTO_ROW_COST <= MAX_CAPACITY_PER_PAGE;
   }
 
   function addPhotoRow(row: (PhotoItem | null)[]) {
-    // If a 6th row (or subsequent row) does not fit on the current page,
-    // "Caso não caiba, ele volta e elimina a última linha", pushing it to the new page.
+    // If another row doesn't fit on this page, push to the next page
     if (!canFitPhotoRow()) {
       pushPage();
     }
@@ -96,13 +98,13 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
     currentPageBlocks.push({
       type: 'photo_row',
       photos: row,
-      heightWeight: 1.0,
+      heightWeight: PHOTO_ROW_COST,
     });
-    currentCapacityUsed += 1.0;
+    currentCapacityUsed += PHOTO_ROW_COST;
     currentPhotoRowsOnPage += 1;
   }
 
-  // Iterate over each Tower
+  // Iterate over each Tower in a CONTINUOUS DENSE FLOW without artificial breaks between towers!
   report.torres.forEach((tower, tIndex) => {
     const towerIndexStr = `6.${tIndex + 1}`;
     const towerTitle = `${towerIndexStr}) VISTORIA & ENSAIOS TÉCNICOS: ${tower.nome.toUpperCase()}`;
@@ -139,9 +141,9 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
       // Cost to start subsection:
       // (tower header if not yet added) + subheader + at least 1 photo row to prevent orphan title
       const needsTowerHeader = !towerHeaderAdded;
-      const initialCost = (needsTowerHeader ? 0.55 : 0) + 0.35 + 1.0;
+      const initialCost = (needsTowerHeader ? TOWER_HEADER_COST : 0) + SUB_HEADER_COST + PHOTO_ROW_COST;
 
-      // If the initial block (header + 1st row) does not fit on current page or current page already has 6 rows:
+      // If the initial block (header + 1st row) does not fit on current page or current page already has max rows:
       if (
         currentCapacityUsed + initialCost > MAX_CAPACITY_PER_PAGE ||
         currentPhotoRowsOnPage >= MAX_ROWS_PER_PAGE
@@ -155,9 +157,9 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
           title: towerTitle,
           towerName: tower.nome,
           towerIndexStr,
-          heightWeight: 0.55,
+          heightWeight: TOWER_HEADER_COST,
         });
-        currentCapacityUsed += 0.55;
+        currentCapacityUsed += TOWER_HEADER_COST;
         towerHeaderAdded = true;
       }
 
@@ -165,24 +167,21 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
       currentPageBlocks.push({
         type: 'sub_header',
         title: sub.title,
-        heightWeight: 0.35,
+        heightWeight: SUB_HEADER_COST,
       });
-      currentCapacityUsed += 0.35;
+      currentCapacityUsed += SUB_HEADER_COST;
 
-      // Add each photo row, testing if the 5th and 6th rows fit dynamically
+      // Add each photo row, packing up to 5 rows per page
       photoRows.forEach((row) => {
         addPhotoRow(row);
       });
     });
 
-    // Between towers: if remaining vertical space cannot fit a new tower's header and first row, break page
-    const nextTowerInitialCost = 0.55 + 0.35 + 1.0; // 1.90
-    if (currentCapacityUsed + nextTowerInitialCost > MAX_CAPACITY_PER_PAGE || currentPhotoRowsOnPage >= 5) {
-      pushPage();
-    }
+    // NOTE: Between towers, we DO NOT force a page break!
+    // If the page still has room, the next tower starts immediately on the same page.
   });
 
-  // Handle common area if enabled
+  // Handle common area if enabled (continues on same page if room available)
   if (report.areaComum.habilitada) {
     const commonIndexStr = `6.${report.torres.length + 1}`;
     const commonTitle = `${commonIndexStr}) VISTORIA & ENSAIOS TÉCNICOS: ${report.areaComum.nome.toUpperCase()}`;
@@ -207,7 +206,7 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
       if (photoRows.length === 0) return;
 
       const needsCommonHeader = !commonHeaderAdded;
-      const initialCost = (needsCommonHeader ? 0.55 : 0) + 0.35 + 1.0;
+      const initialCost = (needsCommonHeader ? TOWER_HEADER_COST : 0) + SUB_HEADER_COST + PHOTO_ROW_COST;
 
       if (
         currentCapacityUsed + initialCost > MAX_CAPACITY_PER_PAGE ||
@@ -222,18 +221,18 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
           title: commonTitle,
           towerName: report.areaComum.nome,
           towerIndexStr: commonIndexStr,
-          heightWeight: 0.55,
+          heightWeight: TOWER_HEADER_COST,
         });
-        currentCapacityUsed += 0.55;
+        currentCapacityUsed += TOWER_HEADER_COST;
         commonHeaderAdded = true;
       }
 
       currentPageBlocks.push({
         type: 'sub_header',
         title: sub.title,
-        heightWeight: 0.35,
+        heightWeight: SUB_HEADER_COST,
       });
-      currentCapacityUsed += 0.35;
+      currentCapacityUsed += SUB_HEADER_COST;
 
       photoRows.forEach((row) => {
         addPhotoRow(row);

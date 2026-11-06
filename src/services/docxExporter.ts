@@ -894,11 +894,11 @@ export async function generateReportDocxBlob(
       docChildren.push(new Paragraph({ pageBreakBefore: true }));
     }
 
-    page.blocks.forEach((block) => {
+    page.blocks.forEach((block, bIdx) => {
       if (block.type === 'tower_header' && block.title) {
         docChildren.push(
           new Paragraph({
-            spacing: { before: 40, after: 40 },
+            spacing: { before: bIdx > 0 ? 120 : 40, after: 40 },
             children: [
               new TextRun({
                 text: block.title,

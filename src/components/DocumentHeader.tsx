@@ -13,7 +13,7 @@ interface DocumentHeaderProps {
 
 export const DocumentHeader: React.FC<DocumentHeaderProps> = ({ empresa }) => {
   return (
-    <header className="relative z-10 w-full flex items-center justify-end pb-3">
+    <header className="relative z-10 w-full flex items-center justify-end pb-1.5">
       <CompanyLogo customLogoUrl={empresa.logoUrl} height={44} />
     </header>
   );

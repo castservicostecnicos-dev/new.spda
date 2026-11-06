@@ -18,8 +18,8 @@ export const DocumentFooter: React.FC<DocumentFooterProps> = ({
   totalPages,
 }) => {
   return (
-    <footer className="relative z-10 w-full mt-auto pt-2 text-[9px] text-slate-800 leading-tight">
-      <div className="border-t border-slate-700/80 mb-1.5" />
+    <footer className="relative z-10 w-full mt-auto pt-1 text-[9px] text-slate-800 leading-tight">
+      <div className="border-t border-slate-700/80 mb-1" />
       <div className="flex items-end justify-between">
         <div className="flex-1 text-center font-bold tracking-tight pr-2">
           <div>
