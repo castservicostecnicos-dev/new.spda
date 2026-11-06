@@ -22,7 +22,6 @@ import {
   Eye,
 } from 'lucide-react';
 import { saveOriginalPhoto, createOptimizedPreview } from '../services/storage';
-import { detectMiliohmimetroReading } from '../services/miliohmimetroOcr';
 import { MeterZoomModal } from './MeterZoomModal';
 
 interface PhotoManagerProps {
@@ -113,8 +112,6 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
   );
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState('');
-  const [readingOcrId, setReadingOcrId] = useState<string | null>(null);
-  const [batchOcrProgress, setBatchOcrProgress] = useState<string | null>(null);
   const [inspectingPhotoIndex, setInspectingPhotoIndex] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -160,22 +157,8 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
 
         // 3. Default Caption & Defect
         let defaultCaption = `${targetTowerName} - Foto #${photoIndex}`;
-        let detectedReading: string | undefined = undefined;
-
         if (activeCategory === 'ensaio_miliohmimetro') {
           defaultCaption = `Ponto #${photoIndex}`;
-          // Automated OCR display reading for milliohmmeter photos
-          try {
-            setProcessingProgress(`Identificando leitura no visor do miliohmímetro ${i + 1}/${files.length} via IA...`);
-            const ocr = await detectMiliohmimetroReading(previewUrl, file.type || 'image/jpeg');
-            if (ocr.success && ocr.leitura && ocr.leitura.trim() !== '') {
-              const unit = ocr.unidade || 'mΩ';
-              detectedReading = `${ocr.leitura} ${unit}`.trim();
-              defaultCaption = `Ponto #${photoIndex} - ${detectedReading}`;
-            }
-          } catch (ocrErr) {
-            console.warn('OCR em background não concluído para a foto:', ocrErr);
-          }
         } else if (
           activeCategory === 'spda_captores' ||
           activeCategory === 'quadros_dps' ||
@@ -191,7 +174,6 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
           legenda: defaultCaption,
           destaqueAlerta: false,
           tipoDefeito: undefined,
-          leituraMiliohmimetro: detectedReading,
           previewUrl,
           storageKey: photoId,
           nomeArquivoOriginal: file.name,
@@ -265,66 +247,6 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
     }
   };
 
-  // Perform single photo milliohmmeter OCR
-  const handleRunOcrSingle = async (photo: PhotoItem, photoIndex: number) => {
-    setReadingOcrId(photo.id);
-    try {
-      const res = await detectMiliohmimetroReading(photo.previewUrl, photo.tipoMime);
-      if (res.success && res.leitura && res.leitura.trim() !== '') {
-        const unit = res.unidade || 'mΩ';
-        const formatted = `${res.leitura} ${unit}`.trim();
-        const baseCaption = `Ponto #${photoIndex}`;
-        const newCaption = `${baseCaption} - ${formatted}`;
-        handleUpdateItem(photo.id, {
-          leituraMiliohmimetro: formatted,
-          legenda: newCaption,
-        });
-      } else {
-        alert(
-          res.error ||
-            'Não foi possível identificar o visor do equipamento na imagem. Você pode inserir a medição manualmente no campo abaixo.'
-        );
-      }
-    } catch (err: any) {
-      alert(`Falha ao ler visor: ${err.message || 'Erro desconhecido'}`);
-    } finally {
-      setReadingOcrId(null);
-    }
-  };
-
-  // Perform batch OCR for all milliohmmeter photos
-  const handleRunOcrBatch = async () => {
-    if (activePhotos.length === 0) return;
-    setBatchOcrProgress('Iniciando leitura em massa dos visores...');
-    let successCount = 0;
-
-    const updatedList = [...activePhotos];
-    for (let i = 0; i < updatedList.length; i++) {
-      const photo = updatedList[i];
-      setBatchOcrProgress(`Lendo visor ${i + 1} de ${updatedList.length}...`);
-      try {
-        const res = await detectMiliohmimetroReading(photo.previewUrl, photo.tipoMime);
-        if (res.success && res.leitura && res.leitura.trim() !== '') {
-          const unit = res.unidade || 'mΩ';
-          const formatted = `${res.leitura} ${unit}`.trim();
-          updatedList[i] = {
-            ...photo,
-            leituraMiliohmimetro: formatted,
-            legenda: `Ponto #${i + 1} - ${formatted}`,
-          };
-          successCount++;
-        }
-      } catch (err) {
-        console.warn(`Erro no OCR da foto ${photo.id}:`, err);
-      }
-    }
-
-    updatePhotosState(updatedList);
-    setBatchOcrProgress(null);
-    alert(
-      `Processamento concluído: ${successCount} de ${updatedList.length} visores identificados e inseridos nas legendas.`
-    );
-  };
 
   // Batch apply defect to all photos in active category
   const handleBatchApplyDefect = (defect: string | undefined) => {
@@ -514,32 +436,18 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
             </div>
             <p className="text-xs text-slate-500">
               {activeCategory === 'ensaio_miliohmimetro'
-                ? '⚡ Ao carregar fotos de ensaio, o sistema identifica automaticamente o valor numérico do visor do miliohmímetro e preenche a legenda.'
+                ? 'Fotos de ensaios e pontos de continuidade. Proporção retangular 3:4 otimizada para o laudo.'
                 : 'Arraste e solte ou selecione imagens. Salvas em qualidade original e otimizadas para o laudo pericial.'}
             </p>
           </div>
         )}
       </div>
 
-      {/* Batch Operations Toolbar for defects and OCR */}
+      {/* Batch Operations Toolbar for defects */}
       {activePhotos.length > 0 && (
         <div className="bg-slate-100 border border-slate-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-800">Ações Rápidas:</span>
-            {activeCategory === 'ensaio_miliohmimetro' && (
-              <button
-                type="button"
-                disabled={!!batchOcrProgress}
-                onClick={handleRunOcrBatch}
-                className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-md font-bold text-[11px] shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
-                title="Lê os visores digitais de todas as fotos desta seção e insere as medições nas legendas"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>
-                  {batchOcrProgress ? batchOcrProgress : 'Ler Todos os Visores com IA'}
-                </span>
-              </button>
-            )}
 
             {activeCategory === 'quadros_dps' && (
               <button
@@ -588,7 +496,6 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             {activePhotos.map((photo, idx) => {
               const hasDefect = !!photo.destaqueAlerta || !!photo.tipoDefeito;
-              const isReadingThis = readingOcrId === photo.id;
 
               return (
                 <div
@@ -656,85 +563,32 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
                         ⚠ {photo.tipoDefeito || 'FALTA EQUIPOTENCIALIZAR'}
                       </div>
                     )}
-
-                    {/* Detected meter value badge */}
-                    {photo.leituraMiliohmimetro && (
-                      <div className="absolute bottom-1 left-1 right-1 bg-slate-950/95 text-emerald-300 border border-emerald-500/40 rounded text-[9px] font-mono font-bold px-1.5 py-0.5 text-center truncate flex items-center justify-center gap-1 z-10 shadow-md">
-                        <Gauge className="w-3 h-3 text-emerald-400" />
-                        <span>Visor: {photo.leituraMiliohmimetro}</span>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Explicit Button to Inspect & Zoom on Meter Screen */}
+                  {/* Button to Inspect & Zoom on Photo */}
                   <button
                     type="button"
                     onClick={() => setInspectingPhotoIndex(idx)}
-                    className="w-full py-1 px-2 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300 text-slate-700 rounded text-[10.5px] font-bold flex items-center justify-center gap-1.5 transition-colors border border-slate-200 shadow-2xs"
-                    title="Abre a lupa ampliada para ler o visor e marcar o valor"
+                    className="w-full py-1.5 px-2 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300 text-slate-700 rounded text-[10.5px] font-bold flex items-center justify-center gap-1.5 transition-colors border border-slate-200 shadow-2xs"
+                    title="Abre visualização ampliada da foto com zoom"
                   >
                     <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Inspecionar Visor (Lupa)</span>
+                    <span>Ampliar Foto</span>
                   </button>
 
-                  {/* Meter Reading Input & AI Read Button for Ensaio */}
-                  {activeCategory === 'ensaio_miliohmimetro' && (
-                    <div className="bg-slate-50 border border-slate-200 rounded p-1.5 space-y-1">
-                      <div className="flex items-center justify-between text-[10px]">
-                        <span className="font-bold text-slate-700 flex items-center gap-1">
-                          <Gauge className="w-3 h-3 text-slate-500" />
-                          Leitura do Visor:
-                        </span>
-                        <button
-                          type="button"
-                          disabled={isReadingThis}
-                          onClick={() => handleRunOcrSingle(photo, idx + 1)}
-                          className="text-[9px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-0.5 bg-amber-100/80 px-1.5 py-0.5 rounded transition-colors disabled:opacity-50"
-                          title="Lê o valor numérico do visor digital com IA"
-                        >
-                          {isReadingThis ? (
-                            <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                          ) : (
-                            <Sparkles className="w-2.5 h-2.5" />
-                          )}
-                          <span>{isReadingThis ? 'Lendo...' : 'Ler Visor'}</span>
-                        </button>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="text"
-                          value={photo.leituraMiliohmimetro || ''}
-                          placeholder="Ex: 23.5 mΩ ou 0.104 Ω"
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const newCaption = val
-                              ? `Ponto #${idx + 1} - ${val}`
-                              : `Ponto #${idx + 1}`;
-                            handleUpdateItem(photo.id, {
-                              leituraMiliohmimetro: val,
-                              legenda: newCaption,
-                            });
-                          }}
-                          className="flex-1 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-[10.5px] font-mono font-bold text-emerald-700 focus:ring-1 focus:ring-emerald-500"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* For Ensaio: Caption with meter reading. For SPDA & Quadros: captions eliminated, only yellow alert */}
+                  {/* For Ensaio: Caption for the point. For SPDA & Quadros: captions eliminated, only yellow alert */}
                   {activeCategory === 'ensaio_miliohmimetro' ? (
                     <>
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-600 block">
-                          Legenda no Laudo
+                          Legenda do Ponto no Laudo
                         </label>
                         <input
                           type="text"
                           value={photo.legenda}
                           onChange={(e) => handleUpdateItem(photo.id, { legenda: e.target.value })}
                           className="w-full border border-slate-300 rounded p-1 text-[11px] focus:ring-1 focus:ring-red-500 font-medium text-slate-900"
-                          placeholder="Ex: Ponto #1 - 0.124 Ω"
+                          placeholder={`Ex: Ponto #${idx + 1}`}
                         />
                       </div>
 

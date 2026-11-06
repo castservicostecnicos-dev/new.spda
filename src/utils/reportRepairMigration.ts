@@ -207,59 +207,25 @@ export function upgradeAndRepairReport(report: SpdaReport): {
       if (category === 'ensaio_miliohmimetro') {
         const isMeter = (idx + 1) % 2 === 0;
 
-        // Try extracting reading from existing reading property, caption or previewUrl
-        let reading = photo.leituraMiliohmimetro;
-        if (!reading) {
-          // Try from caption
-          const capMatch = photo.legenda?.match(/([0-9]+(?:[.,][0-9]+)?\s*(?:mΩ|Ω|kΩ|mOhm|Ohm))/i);
-          if (capMatch) {
-            reading = capMatch[1];
-          } else if (isSvg) {
-            // Try from decoded svg
-            try {
-              const dec = decodeURIComponent(photo.previewUrl);
-              const svgMatch = dec.match(/([0-9]+(?:[.,][0-9]+)?\s*(?:mΩ|Ω|kΩ|mOhm|Ohm))/i);
-              if (svgMatch) reading = svgMatch[1];
-            } catch {
-              // ignore
-            }
-          }
+        // Ensure clean default caption without forced reading
+        if (!photo.legenda || photo.legenda === '') {
+          photo.legenda = isMeter
+            ? `Ponto #${idx + 1}`
+            : `Ponto #${idx + 1} - Caixa de Inspeção`;
+          listModified = true;
         }
 
-        // If it's a meter photo and still lacks reading, assign calibrated default reading
-        if (isMeter && !reading) {
-          const rIndex = Math.floor(idx / 2) % DEFAULT_READINGS.length;
-          reading = DEFAULT_READINGS[rIndex];
+        if (photo.leituraMiliohmimetro) {
+          delete photo.leituraMiliohmimetro;
+          listModified = true;
         }
 
-        if (isMeter) {
-          if (photo.leituraMiliohmimetro !== reading) {
-            photo.leituraMiliohmimetro = reading;
-            listModified = true;
-          }
-
-          const expectedLegenda = `Ponto #${idx + 1} - ${reading}`;
-          if (photo.legenda !== expectedLegenda) {
-            photo.legenda = expectedLegenda;
-            listModified = true;
-          }
-
-          // If it was a mock SVG or square, regenerate with high contrast crystal LCD
-          if (isSvg) {
-            photo.previewUrl = createRepairedSvg('miliohm', `Ponto ${idx + 1}`, reading);
-            listModified = true;
-          }
-        } else {
-          // Test pit
-          const expectedLegenda = `Ponto #${idx + 1} - Caixa de Inspeção`;
-          if (photo.legenda !== expectedLegenda) {
-            photo.legenda = expectedLegenda;
-            listModified = true;
-          }
-          if (isSvg) {
-            photo.previewUrl = createRepairedSvg('pit', `Ponto ${idx + 1}`);
-            listModified = true;
-          }
+        // If it was a mock SVG or square, regenerate with 3:4 ratio
+        if (isSquareSvg) {
+          photo.previewUrl = isMeter
+            ? createRepairedSvg('miliohm', `Ponto ${idx + 1}`)
+            : createRepairedSvg('pit', `Ponto ${idx + 1}`);
+          listModified = true;
         }
       } else if (category === 'spda_captores') {
         // SPDA: Eliminate captions for normal photos. Keep only yellow alert tag

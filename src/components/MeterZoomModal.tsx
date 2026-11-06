@@ -10,16 +10,11 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
-  Sparkles,
-  RefreshCw,
-  Gauge,
   ChevronLeft,
   ChevronRight,
   Check,
   Eye,
-  Sliders,
 } from 'lucide-react';
-import { detectMiliohmimetroReading } from '../services/miliohmimetroOcr';
 
 interface MeterZoomModalProps {
   isOpen: boolean;
@@ -47,42 +42,17 @@ export const MeterZoomModal: React.FC<MeterZoomModalProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // Value and unit state
-  const [currentVal, setCurrentVal] = useState<string>('');
-  const [currentUnit, setCurrentUnit] = useState<string>('Ω');
-  const [isReadingAi, setIsReadingAi] = useState<boolean>(false);
-  const [aiMessage, setAiMessage] = useState<string | null>(null);
+  // Caption state
+  const [currentCaption, setCurrentCaption] = useState<string>('');
 
   // Sync state when photo changes
   useEffect(() => {
     if (photo) {
-      setZoomLevel(1.5); // Default to 1.5x zoom so LCD is immediately larger and visible!
-      setPan({ x: 0, y: -20 }); // Slightly pan towards the upper half where the meter screen sits
-      setAiMessage(null);
-
-      const existingReading = photo.leituraMiliohmimetro || '';
-      if (existingReading) {
-        const parts = existingReading.split(/\s+/);
-        if (parts.length >= 2) {
-          setCurrentVal(parts[0]);
-          setCurrentUnit(parts[1]);
-        } else {
-          setCurrentVal(existingReading.replace(/[^0-9.,]/g, ''));
-          setCurrentUnit(existingReading.includes('m') ? 'mΩ' : 'Ω');
-        }
-      } else {
-        // Try extracting from caption
-        const match = photo.legenda?.match(/([0-9]+(?:[.,][0-9]+)?)\s*(mΩ|Ω|kΩ)?/i);
-        if (match) {
-          setCurrentVal(match[1]);
-          setCurrentUnit(match[2] || 'Ω');
-        } else {
-          setCurrentVal('');
-          setCurrentUnit('Ω');
-        }
-      }
+      setZoomLevel(1.2);
+      setPan({ x: 0, y: 0 });
+      setCurrentCaption(photo.legenda || `Ponto #${photoIndex}`);
     }
-  }, [photo?.id]);
+  }, [photo?.id, photoIndex]);
 
   if (!isOpen || !photo) return null;
 
@@ -113,44 +83,11 @@ export const MeterZoomModal: React.FC<MeterZoomModalProps> = ({
     setIsDragging(false);
   };
 
-  // Run AI OCR on this photo
-  const handleRunAi = async () => {
-    setIsReadingAi(true);
-    setAiMessage(null);
-    try {
-      const result = await detectMiliohmimetroReading(photo.previewUrl);
-      if (result.success && result.leitura) {
-        setCurrentVal(result.leitura);
-        const unit = result.unidade || 'Ω';
-        setCurrentUnit(unit);
-        setAiMessage(`Leitura detectada com sucesso: ${result.leitura} ${unit}`);
-
-        // Automatically apply to photo
-        const formatted = `${result.leitura} ${unit}`;
-        onUpdatePhoto(photo.id, {
-          leituraMiliohmimetro: formatted,
-          legenda: `Ponto #${photoIndex} - ${formatted}`,
-        });
-      } else {
-        setAiMessage(result.error || 'Não foi possível detectar o número automaticamente. Digite no campo abaixo.');
-      }
-    } catch (err: any) {
-      setAiMessage(err.message || 'Erro ao comunicar com o leitor.');
-    } finally {
-      setIsReadingAi(false);
-    }
-  };
-
-  // Apply reading and save
-  const handleSaveReading = (advanceNext = false) => {
-    const valClean = currentVal.trim();
-    if (valClean) {
-      const formatted = `${valClean} ${currentUnit}`;
-      onUpdatePhoto(photo.id, {
-        leituraMiliohmimetro: formatted,
-        legenda: `Ponto #${photoIndex} - ${formatted}`,
-      });
-    }
+  // Save caption and close or navigate
+  const handleSaveCaption = (advanceNext = false) => {
+    onUpdatePhoto(photo.id, {
+      legenda: currentCaption.trim(),
+    });
 
     if (advanceNext && photoIndex < totalPhotos) {
       onNavigate(photoIndex); // photoIndex is 1-based, passing to 0-based navigate
@@ -158,8 +95,6 @@ export const MeterZoomModal: React.FC<MeterZoomModalProps> = ({
       onClose();
     }
   };
-
-  const quickValues = ['23.5 mΩ', '0.104 Ω', '0.089 Ω', '0.120 Ω', '0.095 Ω', '0.118 Ω', '0.076 Ω'];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-sm p-3 sm:p-5">
@@ -172,14 +107,14 @@ export const MeterZoomModal: React.FC<MeterZoomModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                <span>Inspeção e Leitura do Visor</span>
+                <span>Ampliação e Inspeção da Foto</span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-mono">
-                  Ponto #{photoIndex} de {totalPhotos}
+                  Foto #{photoIndex} de {totalPhotos}
                 </span>
                 <span className="text-xs text-slate-400">({towerName})</span>
               </h3>
               <p className="text-[11px] text-slate-400">
-                Arraste para mover e utilize o zoom para ler o visor digital com nitidez máxima
+                Arraste com o mouse e utilize os controles de zoom para inspecionar os detalhes da fotografia
               </p>
             </div>
           </div>
@@ -233,7 +168,7 @@ export const MeterZoomModal: React.FC<MeterZoomModalProps> = ({
             {/* Hint overlay */}
             {zoomLevel > 1 && (
               <div className="absolute bottom-3 left-3 z-20 bg-slate-900/80 text-slate-300 text-[10px] px-2.5 py-1 rounded-full pointer-events-none border border-slate-700/60">
-                Arraste a foto com o mouse para focar no visor
+                Arraste a foto com o mouse para focar no detalhe desejado
               </div>
             )}
 
@@ -249,7 +184,7 @@ export const MeterZoomModal: React.FC<MeterZoomModalProps> = ({
             >
               <img
                 src={photo.previewUrl}
-                alt={photo.legenda || 'Foto do visor'}
+                alt={photo.legenda || 'Foto ampliada'}
                 className="max-h-[85%] max-w-[85%] object-contain transition-transform duration-75 select-none rounded shadow-md"
                 style={{
                   transform: `scale(${zoomLevel}) translate(${pan.x / zoomLevel}px, ${pan.y / zoomLevel}px)`,
@@ -259,134 +194,33 @@ export const MeterZoomModal: React.FC<MeterZoomModalProps> = ({
             </div>
           </div>
 
-          {/* Right Panel: Value Input, AI Reader & Legend Sync */}
-          <div className="w-full md:w-96 bg-slate-800/95 border-t md:border-t-0 md:border-l border-slate-700 p-4 sm:p-5 flex flex-col justify-between overflow-y-auto space-y-4">
+          {/* Right Panel: Caption and Navigation */}
+          <div className="w-full md:w-80 bg-slate-800/95 border-t md:border-t-0 md:border-l border-slate-700 p-4 sm:p-5 flex flex-col justify-between overflow-y-auto space-y-4">
             <div className="space-y-4">
-              {/* Point Badge & Status */}
-              <div className="flex items-center justify-between border-b border-slate-700 pb-3">
-                <div className="flex items-center gap-2">
-                  <Gauge className="w-4 h-4 text-emerald-400" />
-                  <span className="font-bold text-xs uppercase tracking-wider text-slate-200">
-                    Ponto de Ensaio #{photoIndex}
-                  </span>
-                </div>
-                {photo.leituraMiliohmimetro ? (
-                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full">
-                    Visor: {photo.leituraMiliohmimetro}
-                  </span>
-                ) : (
-                  <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    Pendente Leitura
-                  </span>
-                )}
-              </div>
-
-              {/* AI Auto-Read Trigger */}
-              <div className="bg-gradient-to-br from-slate-900 to-slate-900/80 border border-emerald-500/30 rounded-xl p-3.5 space-y-2 shadow-inner">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Leitor Automático com IA
-                  </span>
-                  <span className="text-[9px] text-slate-400">Gemini 3.8 Flash</span>
-                </div>
-                <p className="text-[11px] text-slate-300 leading-snug">
-                  Identifica automaticamente o número e a escala no display digital da foto.
-                </p>
-
-                <button
-                  type="button"
-                  disabled={isReadingAi}
-                  onClick={handleRunAi}
-                  className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50"
-                >
-                  {isReadingAi ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Lendo visor com IA...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
-                      <span>Ler Valor no Visor Automaticamente</span>
-                    </>
-                  )}
-                </button>
-
-                {aiMessage && (
-                  <div className="text-[10.5px] p-2 rounded bg-slate-800 border border-slate-700 text-slate-200">
-                    {aiMessage}
-                  </div>
-                )}
-              </div>
-
-              {/* Manual Entry & Calibration */}
-              <div className="space-y-2 bg-slate-900/60 border border-slate-700/60 rounded-xl p-3.5">
-                <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
-                  <span>Valor Lido no Visor:</span>
-                  <span className="text-[10px] text-slate-400 font-normal">Ex: 23.5 ou 0.104</span>
-                </label>
-
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="text"
-                    value={currentVal}
-                    placeholder="Ex: 23.5"
-                    onChange={(e) => setCurrentVal(e.target.value)}
-                    className="flex-1 bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-base font-mono font-bold text-emerald-300 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-
-                  {/* Unit Selector */}
-                  <div className="flex rounded-lg bg-slate-800 border border-slate-600 p-0.5 text-xs font-bold">
-                    {(['mΩ', 'Ω', 'kΩ'] as const).map((unit) => (
-                      <button
-                        key={unit}
-                        type="button"
-                        onClick={() => setCurrentUnit(unit)}
-                        className={`px-2 py-1 rounded font-mono transition-colors ${
-                          currentUnit === unit
-                            ? 'bg-emerald-600 text-white shadow-xs'
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        {unit}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Quick Value suggestions */}
-                <div className="pt-1 space-y-1">
-                  <span className="text-[10px] text-slate-400 block font-medium">Valores rápidos:</span>
-                  <div className="flex flex-wrap gap-1">
-                    {quickValues.map((qv) => (
-                      <button
-                        key={qv}
-                        type="button"
-                        onClick={() => {
-                          const [v, u] = qv.split(' ');
-                          setCurrentVal(v);
-                          setCurrentUnit(u || 'Ω');
-                        }}
-                        className="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded border border-slate-700 font-mono"
-                      >
-                        {qv}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Live Preview of the Report Caption */}
-              <div className="bg-slate-900/40 border border-slate-700/50 rounded-lg p-2.5 space-y-1">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">
-                  Legenda Automática no Laudo:
+              <div className="border-b border-slate-700 pb-3">
+                <span className="font-bold text-xs uppercase tracking-wider text-slate-200 block">
+                  Foto #{photoIndex} — {towerName}
                 </span>
-                <div className="text-xs font-mono font-semibold text-emerald-400">
-                  {currentVal
-                    ? `Ponto #${photoIndex} - ${currentVal.trim()} ${currentUnit}`
-                    : `Ponto #${photoIndex}`}
-                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Visualização nítida em proporção retangular 3:4.
+                </p>
+              </div>
+
+              {/* Caption field */}
+              <div className="space-y-2 bg-slate-900/60 border border-slate-700/60 rounded-xl p-3.5">
+                <label className="text-[11px] font-bold text-slate-300 block">
+                  Legenda da Foto no Laudo:
+                </label>
+                <input
+                  type="text"
+                  value={currentCaption}
+                  onChange={(e) => setCurrentCaption(e.target.value)}
+                  placeholder={`Ex: Ponto #${photoIndex}`}
+                  className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <p className="text-[10px] text-slate-400">
+                  Este texto será apresentado abaixo da foto no documento final.
+                </p>
               </div>
             </div>
 
@@ -395,15 +229,15 @@ export const MeterZoomModal: React.FC<MeterZoomModalProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => handleSaveReading(true)}
+                  onClick={() => handleSaveCaption(true)}
                   className="flex-1 py-2 px-3 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-md"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>Salvar e Próximo Ponto</span>
+                  <span>Salvar e Próxima Foto</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSaveReading(false)}
+                  onClick={() => handleSaveCaption(false)}
                   className="py-2 px-3 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-bold text-xs transition-colors"
                 >
                   Concluir
@@ -430,7 +264,7 @@ export const MeterZoomModal: React.FC<MeterZoomModalProps> = ({
                   onClick={() => onNavigate(photoIndex)}
                   className="flex items-center gap-1 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 px-2 py-1 rounded"
                 >
-                  <span>Próximo</span>
+                  <span>Próxima</span>
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>

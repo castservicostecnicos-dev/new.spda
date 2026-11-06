@@ -196,12 +196,10 @@ export function generateSamplePhotosForTower(towerId: string, towerName: string)
 } {
   const fotosEnsaio: PhotoItem[] = [];
   // 15 Continuity test points (miliohmímetro + caixa)
-  const readings = ['0.104 Ω', '0.089 Ω', '0.120 Ω', '0.095 Ω', '0.118 Ω', '0.112 Ω', '0.076 Ω', '0.130 Ω'];
   for (let i = 1; i <= 15; i++) {
     const isMeter = i % 2 === 0;
-    const reading = isMeter ? readings[Math.floor((i - 1) / 2) % readings.length] : undefined;
     const legenda = isMeter
-      ? `Ponto #${i} - ${reading}`
+      ? `Ponto #${i}`
       : `Ponto #${i} - Caixa de Inspeção`;
 
     fotosEnsaio.push({
@@ -209,9 +207,8 @@ export function generateSamplePhotosForTower(towerId: string, towerName: string)
       torreId: towerId,
       categoria: 'ensaio_miliohmimetro',
       legenda,
-      leituraMiliohmimetro: reading,
       previewUrl: isMeter
-        ? createTechnicalSvg('miliohm', `Ponto ${i}`, reading)
+        ? createTechnicalSvg('miliohm', `Ponto ${i}`)
         : createTechnicalSvg('pit', `Ponto ${i}`),
       nomeArquivoOriginal: `${towerName.replace(/\s+/g, '_')}_Ensaio_Ponto_${i}.jpg`,
       tamanhoBytes: 350000,
