@@ -487,7 +487,7 @@ export default function App() {
               activeTab === 'conclusao' ? 'bg-white text-slate-900 font-bold shadow-xs' : 'text-slate-300 hover:text-white'
             }`}
           >
-            5. Parecer &amp; Assinatura
+            5. Textos &amp; Parecer
           </button>
           <button
             onClick={() => setActiveTab('preview')}
@@ -578,7 +578,7 @@ export default function App() {
           { id: 'torres', label: `Torres (${report.torres.length})` },
           { id: 'fotos', label: `Fotos (${totalPhotos})` },
           { id: 'medicoes', label: 'Medições' },
-          { id: 'conclusao', label: 'Assinatura' },
+          { id: 'conclusao', label: 'Textos & Parecer' },
           { id: 'preview', label: `Laudo (${totalPages}p)` },
         ].map((tab) => (
           <button
@@ -909,7 +909,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Local</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Endereço</label>
                   <input
                     type="text"
                     value={report.cliente.local}
@@ -920,7 +920,7 @@ export default function App() {
                       })
                     }
                     className="w-full border border-slate-300 rounded-lg p-2 text-xs"
-                    placeholder="No entorno das torres."
+                    placeholder="Ex: Av. São João, 1234 - Colinas"
                   />
                 </div>
 
@@ -1414,211 +1414,839 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 6: CONCLUSÃO, RECOMENDAÇÕES & ASSINATURA */}
+        {/* TAB 5: TEXTOS DO LAUDO & PARECER TÉCNICO */}
         {activeTab === 'conclusao' && (
           <div className="no-print max-w-4xl w-full mx-auto p-4 sm:p-6 space-y-6">
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-4">
-              <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
-                7) Recomendações Técnicas Prioritárias &amp; Conclusão
-              </h2>
+            {/* Header explicativo com ação de restaurar padrão */}
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-emerald-400" />
+                  <h2 className="text-base font-bold">Textos do Laudo &amp; Parecer Técnico</h2>
+                </div>
+                <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                  Os textos carregam os parâmetros normativos padrão da ABNT NBR 5419:2026, mas podem ser adaptados e personalizados livremente para atender a este cliente específico.
+                </p>
+              </div>
 
-              <div className="space-y-2 text-xs">
-                <label className="block font-semibold text-slate-700">
-                  Recomendações Técnicas Prioritárias (NBR 5419:2026)
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    confirm(
+                      'Deseja restaurar todos os textos deste laudo para o padrão normativo da NBR 5419:2026? As edições personalizadas de textos serão redefinidas para o padrão.'
+                    )
+                  ) {
+                    setReport({
+                      ...report,
+                      modeloTextos: { ...DEFAULT_FIXED_TEXTS },
+                      conclusaoPersonalizada: undefined,
+                      parecerArtPersonalizado: undefined,
+                      fechamentoRecomendacoesPersonalizado: undefined,
+                      disposicoesFinaisPersonalizada: undefined,
+                      recomendacoesPersonalizadas: [],
+                    });
+                  }
+                }}
+                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 shadow-2xs"
+                title="Recarregar os textos padrão da NBR 5419:2026 para este laudo"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Restaurar Padrão da Norma</span>
+              </button>
+            </div>
+
+            {/* SEÇÃO 1: 8) PARECER TÉCNICO CONCLUSIVO */}
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-5">
+              <div className="border-b border-slate-100 pb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    8) Conclusão &amp; Parecer Técnico Pericial
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Parecer conclusivo do engenheiro responsável quanto à conformidade com a NBR 5419:2026.
+                  </p>
+                </div>
+
+                {/* Modelos rápidos de trechos */}
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  <span className="text-[10.5px] font-bold text-slate-500">Modelos Prontos:</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReport({
+                        ...report,
+                        conclusaoPersonalizada:
+                          'Conforme descrito no decorrer deste relatório e avaliações em campo, concluímos que as áreas inspecionadas encontram-se em condições técnicas adequadas e plenamente satisfatórias no que se refere ao Sistema de Proteção Contra Descargas Atmosféricas (SPDA) conforme preconizado pela norma NBR 5419:2026, quanto aos aspectos de instalação, continuidade e segurança.',
+                      })
+                    }
+                    className="px-2 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-[10.5px] font-semibold transition-colors"
+                    title="Inserir parecer de laudo aprovado sem pendências"
+                  >
+                    ✓ Aprovado / Conforme
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReport({
+                        ...report,
+                        conclusaoPersonalizada:
+                          'Conforme descrito no decorrer deste relatório, excluindo-se as observações efetuadas e defeitos pontuais registrados neste documento, podemos concluir que as áreas inspecionadas atendem satisfatoriamente aos requisitos da NBR 5419:2026, condicionando-se a conformidade plena à execução imediata das recomendações prioritárias apontadas no capítulo 7.',
+                      })
+                    }
+                    className="px-2 py-1 rounded bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-[10.5px] font-semibold transition-colors"
+                    title="Inserir parecer com ressalvas/adequações pendentes"
+                  >
+                    ⚠ Com Ressalvas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReport({
+                        ...report,
+                        conclusaoPersonalizada:
+                          'Diante das inconformidades críticas verificadas nas vistorias e ausência de continuidade e proteção adequada, concluímos que o sistema de SPDA existente NÃO se encontra em condições satisfatórias de operação conforme a NBR 5419:2026, exigindo intervenção técnica emergencial de reforma para mitigar riscos de queima de equipamentos e danos às estruturas e ocupantes.',
+                      })
+                    }
+                    className="px-2 py-1 rounded bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 text-[10.5px] font-semibold transition-colors"
+                    title="Inserir parecer desfavorável/reprovado"
+                  >
+                    ✕ Reprovado
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReport({
+                        ...report,
+                        conclusaoPersonalizada: DEFAULT_FIXED_TEXTS.conclusaoFinal,
+                      })
+                    }
+                    className="px-2 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 text-[10.5px] font-semibold transition-colors"
+                    title="Inserir parecer padrão original da norma"
+                  >
+                    ↺ Padrão NBR 5419
+                  </button>
+                </div>
+              </div>
+
+              {/* Textarea do Parecer Principal */}
+              <div className="space-y-1.5 text-xs">
+                <label className="block font-semibold text-slate-800">
+                  Parecer Técnico Principal (Conclusão Geral):
                 </label>
-                <div className="space-y-1.5 border border-slate-200 rounded-lg p-3 bg-slate-50/50">
+                <textarea
+                  rows={4}
+                  value={report.conclusaoPersonalizada ?? report.modeloTextos.conclusaoFinal}
+                  onChange={(e) => setReport({ ...report, conclusaoPersonalizada: e.target.value })}
+                  placeholder="Digite aqui o parecer técnico pericial..."
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 leading-relaxed focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+
+              {/* Parecer sobre a ART */}
+              <div className="space-y-1.5 text-xs">
+                <label className="block font-semibold text-slate-800">
+                  Parecer referente à ART &amp; Responsabilidade Técnica:
+                </label>
+                <textarea
+                  rows={2}
+                  value={
+                    report.parecerArtPersonalizado ??
+                    (report.modeloTextos.parecerArt ||
+                      'Por fim, concluo que as malhas de aterramento e as malhas superiores do sistema de proteção contra descargas atmosféricas em análise atendem aos requisitos dos projetos executivos e normas vigentes citadas no item 01 deste relatório. Este é meu parecer técnico emitido sob a ART em anexo.')
+                  }
+                  onChange={(e) => setReport({ ...report, parecerArtPersonalizado: e.target.value })}
+                  placeholder="Declaração técnica referente à ART..."
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 leading-relaxed focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* Disposições Finais & Validade */}
+              <div className="space-y-1.5 text-xs">
+                <label className="block font-semibold text-slate-800">
+                  Disposições Finais &amp; Validade da Inspeção:
+                </label>
+                <textarea
+                  rows={2}
+                  value={report.disposicoesFinaisPersonalizada ?? report.modeloTextos.disposicoesFinais}
+                  onChange={(e) => setReport({ ...report, disposicoesFinaisPersonalizada: e.target.value })}
+                  placeholder="Ex: Validade de 1 ano conforme NBR 5419-3:2026..."
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 leading-relaxed focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* Declaração / Nota CREA */}
+              <div className="space-y-1.5 text-xs">
+                <label className="block font-semibold text-slate-800">
+                  Declaração Institucional CREA (Habilitação Profissional):
+                </label>
+                <textarea
+                  rows={2}
+                  value={report.modeloTextos.notaCrea}
+                  onChange={(e) =>
+                    setReport({
+                      ...report,
+                      modeloTextos: { ...report.modeloTextos, notaCrea: e.target.value },
+                    })
+                  }
+                  placeholder="Nota de realização por engenheiro habilitado com registro no CREA..."
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 leading-relaxed focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
+
+            {/* SEÇÃO 2: 7) RECOMENDAÇÕES PRIORITÁRIAS */}
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-4">
+              <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-red-500" />
+                    7) Correções Necessárias &amp; Recomendações Prioritárias
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Edite cada recomendação individualmente, exclua as desnecessárias ou adicione novos itens para este cliente.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentCustom = [...report.recomendacoesPersonalizadas];
+                    currentCustom.push('Nova recomendação técnica para adequação do sistema.');
+                    setReport({ ...report, recomendacoesPersonalizadas: currentCustom });
+                  }}
+                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Adicionar Recomendação</span>
+                </button>
+              </div>
+
+              {/* Lista editável de recomendações */}
+              <div className="space-y-2 text-xs">
+                <div className="space-y-2">
                   {report.modeloTextos.recomendacoesPrioritarias.map((rec, idx) => (
-                    <div key={idx} className="text-slate-800 flex items-start gap-2">
-                      <span className="font-bold text-red-600 shrink-0">7.{idx + 1}-</span>
-                      <span>{rec}</span>
+                    <div key={idx} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2">
+                      <span className="font-bold text-red-600 shrink-0 text-xs">7.{idx + 1}-</span>
+                      <input
+                        type="text"
+                        value={rec}
+                        onChange={(e) => {
+                          const copy = [...report.modeloTextos.recomendacoesPrioritarias];
+                          copy[idx] = e.target.value;
+                          setReport({
+                            ...report,
+                            modeloTextos: { ...report.modeloTextos, recomendacoesPrioritarias: copy },
+                          });
+                        }}
+                        className="flex-1 bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-900 focus:ring-1 focus:ring-red-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const copy = report.modeloTextos.recomendacoesPrioritarias.filter((_, i) => i !== idx);
+                          setReport({
+                            ...report,
+                            modeloTextos: { ...report.modeloTextos, recomendacoesPrioritarias: copy },
+                          });
+                        }}
+                        className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
+                        title="Remover esta recomendação"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Recomendações personalizadas adicionais */}
+                  {report.recomendacoesPersonalizadas.map((rec, idx) => {
+                    const num = report.modeloTextos.recomendacoesPrioritarias.length + idx + 1;
+                    return (
+                      <div key={`custom-${idx}`} className="flex items-center gap-2 bg-amber-50/50 border border-amber-200 rounded-lg p-2">
+                        <span className="font-bold text-amber-700 shrink-0 text-xs">7.{num}-</span>
+                        <input
+                          type="text"
+                          value={rec}
+                          onChange={(e) => {
+                            const copy = [...report.recomendacoesPersonalizadas];
+                            copy[idx] = e.target.value;
+                            setReport({ ...report, recomendacoesPersonalizadas: copy });
+                          }}
+                          className="flex-1 bg-white border border-amber-300 rounded px-2.5 py-1 text-xs text-slate-900 focus:ring-1 focus:ring-amber-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const copy = report.recomendacoesPersonalizadas.filter((_, i) => i !== idx);
+                            setReport({ ...report, recomendacoesPersonalizadas: copy });
+                          }}
+                          className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
+                          title="Remover"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Fechamento das Recomendações */}
+              <div className="space-y-1.5 text-xs pt-1">
+                <label className="block font-semibold text-slate-800">
+                  Frase de Fechamento das Recomendações:
+                </label>
+                <input
+                  type="text"
+                  value={
+                    report.fechamentoRecomendacoesPersonalizado ??
+                    (report.modeloTextos.fechamentoRecomendacoes ||
+                      'Fazer a correção de todos os itens apontados neste relatório, de forma ao sistema operar em sua perfeita harmonia.')
+                  }
+                  onChange={(e) => setReport({ ...report, fechamentoRecomendacoesPersonalizado: e.target.value })}
+                  placeholder="Frase final do capítulo 7 de recomendações..."
+                  className="w-full border border-slate-300 rounded-lg p-2 text-xs text-slate-900 font-medium focus:ring-1 focus:ring-red-500"
+                />
+              </div>
+            </div>
+
+            {/* SEÇÃO 3: 1) OBJETO DA INSPEÇÃO & INTRODUÇÃO */}
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-5">
+              <div className="border-b border-slate-100 pb-3">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500" />
+                  1) Objeto da Inspeção &amp; Introdução Normativa
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Textos exibidos na capa e na página 2 do laudo com as definições do escopo dos serviços.
+                </p>
+              </div>
+
+              {/* Objeto da Inspeção */}
+              <div className="space-y-1.5 text-xs">
+                <label className="block font-semibold text-slate-800">
+                  Objeto da Inspeção (destacado na Capa):
+                </label>
+                <textarea
+                  rows={2}
+                  value={report.modeloTextos.objetoInspecao}
+                  onChange={(e) =>
+                    setReport({
+                      ...report,
+                      modeloTextos: { ...report.modeloTextos, objetoInspecao: e.target.value },
+                    })
+                  }
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 leading-relaxed uppercase focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Introduções 1.1 a 1.4 */}
+              <div className="space-y-3 text-xs pt-1">
+                <div className="space-y-1">
+                  <label className="block font-semibold text-slate-700">Item 1.1 - Objetivo Geral do Laudo:</label>
+                  <textarea
+                    rows={2}
+                    value={report.modeloTextos.introducao11}
+                    onChange={(e) =>
+                      setReport({
+                        ...report,
+                        modeloTextos: { ...report.modeloTextos, introducao11: e.target.value },
+                      })
+                    }
+                    className="w-full border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block font-semibold text-slate-700">Item 1.2 - Sugestões Técnicas e Desenhos:</label>
+                  <input
+                    type="text"
+                    value={report.modeloTextos.introducao12}
+                    onChange={(e) =>
+                      setReport({
+                        ...report,
+                        modeloTextos: { ...report.modeloTextos, introducao12: e.target.value },
+                      })
+                    }
+                    className="w-full border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block font-semibold text-slate-700">Item 1.3 - Base das Avaliações e Medições:</label>
+                  <input
+                    type="text"
+                    value={report.modeloTextos.introducao13}
+                    onChange={(e) =>
+                      setReport({
+                        ...report,
+                        modeloTextos: { ...report.modeloTextos, introducao13: e.target.value },
+                      })
+                    }
+                    className="w-full border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block font-semibold text-slate-700">Item 1.4 - Citação NBR 5419-1:2026 item 9.4.1.2:</label>
+                  <input
+                    type="text"
+                    value={report.modeloTextos.introducao14}
+                    onChange={(e) =>
+                      setReport({
+                        ...report,
+                        modeloTextos: { ...report.modeloTextos, introducao14: e.target.value },
+                      })
+                    }
+                    className="w-full border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Funções do SPDA Externo */}
+              <div className="space-y-2 text-xs pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-slate-800">
+                    Funções do SPDA Externo (itens a, b, c):
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const copy = [...report.modeloTextos.funcoesSpda];
+                      copy.push('Nova função técnica do sistema externo.');
+                      setReport({
+                        ...report,
+                        modeloTextos: { ...report.modeloTextos, funcoesSpda: copy },
+                      });
+                    }}
+                    className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-[11px] font-bold flex items-center gap-1 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Adicionar Função</span>
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {report.modeloTextos.funcoesSpda.map((func, idx) => (
+                    <div key={idx} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2">
+                      <span className="font-bold text-blue-700 text-xs shrink-0">
+                        {String.fromCharCode(97 + idx)})
+                      </span>
+                      <input
+                        type="text"
+                        value={func}
+                        onChange={(e) => {
+                          const copy = [...report.modeloTextos.funcoesSpda];
+                          copy[idx] = e.target.value;
+                          setReport({
+                            ...report,
+                            modeloTextos: { ...report.modeloTextos, funcoesSpda: copy },
+                          });
+                        }}
+                        className="flex-1 bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-900 focus:ring-1 focus:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const copy = report.modeloTextos.funcoesSpda.filter((_, i) => i !== idx);
+                          setReport({
+                            ...report,
+                            modeloTextos: { ...report.modeloTextos, funcoesSpda: copy },
+                          });
+                        }}
+                        className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
+                        title="Remover"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Conclusão final */}
-              <div className="space-y-1.5 text-xs">
-                <label className="block font-semibold text-slate-700">
-                  8) Conclusão Final do Parecer Técnico
-                </label>
-                <textarea
-                  rows={4}
-                  value={report.conclusaoPersonalizada || report.modeloTextos.conclusaoFinal}
-                  onChange={(e) => setReport({ ...report, conclusaoPersonalizada: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg p-2 text-xs"
-                />
-              </div>
-
-              {/* Responsabilidade Técnica & Assinatura */}
-              <div className="pt-4 border-t border-slate-100 space-y-3">
+              {/* Etapas da Inspeção */}
+              <div className="space-y-2 text-xs pt-2 border-t border-slate-100">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-slate-900">
-                    Responsabilidade Técnica &amp; Assinatura Digital
-                  </h3>
+                  <label className="font-semibold text-slate-800">
+                    Etapas do Levantamento e Inspeção:
+                  </label>
                   <button
                     type="button"
-                    onClick={() => setIsSignatureOpen(true)}
-                    className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+                    onClick={() => {
+                      const copy = [...report.modeloTextos.etapasInspecao];
+                      copy.push('Nova etapa de vistoria ou análise técnica.');
+                      setReport({
+                        ...report,
+                        modeloTextos: { ...report.modeloTextos, etapasInspecao: copy },
+                      });
+                    }}
+                    className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-[11px] font-bold flex items-center gap-1 transition-colors"
                   >
-                    <Award className="w-4 h-4" />
-                    {report.responsavelTecnico.assinaturaUrl ? 'Alterar Assinatura' : 'Assinar Digitalmente'}
+                    <Plus className="w-3 h-3" />
+                    <span>Adicionar Etapa</span>
                   </button>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-1">
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Responsável Técnico
-                    </label>
-                    <input
-                      type="text"
-                      value={report.responsavelTecnico.responsavelTecnico}
-                      onChange={(e) =>
-                        setReport({
-                          ...report,
-                          responsavelTecnico: {
-                            ...report.responsavelTecnico,
-                            responsavelTecnico: e.target.value,
-                          },
-                        })
-                      }
-                      className="w-full border border-slate-300 rounded-lg p-2 text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Qualificação Profissional
-                    </label>
-                    <input
-                      type="text"
-                      value={report.responsavelTecnico.qualificacao}
-                      onChange={(e) =>
-                        setReport({
-                          ...report,
-                          responsavelTecnico: {
-                            ...report.responsavelTecnico,
-                            qualificacao: e.target.value,
-                          },
-                        })
-                      }
-                      className="w-full border border-slate-300 rounded-lg p-2 text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Registro CREA / CONFEA
-                    </label>
-                    <input
-                      type="text"
-                      value={report.responsavelTecnico.registroCrea}
-                      onChange={(e) =>
-                        setReport({
-                          ...report,
-                          responsavelTecnico: {
-                            ...report.responsavelTecnico,
-                            registroCrea: e.target.value,
-                          },
-                        })
-                      }
-                      className="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Número / Detalhe da ART
-                    </label>
-                    <input
-                      type="text"
-                      value={report.responsavelTecnico.numeroArt}
-                      onChange={(e) =>
-                        setReport({
-                          ...report,
-                          responsavelTecnico: {
-                            ...report.responsavelTecnico,
-                            numeroArt: e.target.value,
-                          },
-                        })
-                      }
-                      className="w-full border border-slate-300 rounded-lg p-2 text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Cidade de Emissão
-                    </label>
-                    <input
-                      type="text"
-                      value={report.responsavelTecnico.cidadeEmissao}
-                      onChange={(e) =>
-                        setReport({
-                          ...report,
-                          responsavelTecnico: {
-                            ...report.responsavelTecnico,
-                            cidadeEmissao: e.target.value,
-                          },
-                        })
-                      }
-                      className="w-full border border-slate-300 rounded-lg p-2 text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Data de Emissão
-                    </label>
-                    <input
-                      type="text"
-                      value={report.responsavelTecnico.dataEmissao}
-                      onChange={(e) =>
-                        setReport({
-                          ...report,
-                          responsavelTecnico: {
-                            ...report.responsavelTecnico,
-                            dataEmissao: e.target.value,
-                          },
-                        })
-                      }
-                      className="w-full border border-slate-300 rounded-lg p-2 text-xs"
-                    />
-                  </div>
-                </div>
-
-                {report.responsavelTecnico.assinaturaUrl && (
-                  <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-12 w-32 bg-white border border-slate-300 rounded flex items-center justify-center p-1">
-                        <img
-                          src={report.responsavelTecnico.assinaturaUrl}
-                          alt="Assinatura"
-                          className="max-h-full object-contain"
-                        />
-                      </div>
-                      <span className="text-xs text-slate-600 font-medium">
-                        Assinatura digital inserida no documento final
+                <div className="space-y-2">
+                  {report.modeloTextos.etapasInspecao.map((etapa, idx) => (
+                    <div key={idx} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2">
+                      <span className="font-bold text-blue-700 text-xs shrink-0">
+                        {String.fromCharCode(97 + idx)})
                       </span>
+                      <input
+                        type="text"
+                        value={etapa}
+                        onChange={(e) => {
+                          const copy = [...report.modeloTextos.etapasInspecao];
+                          copy[idx] = e.target.value;
+                          setReport({
+                            ...report,
+                            modeloTextos: { ...report.modeloTextos, etapasInspecao: copy },
+                          });
+                        }}
+                        className="flex-1 bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-900 focus:ring-1 focus:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const copy = report.modeloTextos.etapasInspecao.filter((_, i) => i !== idx);
+                          setReport({
+                            ...report,
+                            modeloTextos: { ...report.modeloTextos, etapasInspecao: copy },
+                          });
+                        }}
+                        className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
+                        title="Remover"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* SEÇÃO 4: REFERÊNCIAS NORMATIVAS APLICÁVEIS */}
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-4">
+              <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                    2) Referências Normativas Aplicáveis
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Lista de normas da ABNT e internacionais aplicadas neste laudo pericial.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const copy = [...report.modeloTextos.referenciasNormativas];
+                    copy.push('ABNT NBR 5419:2026, Nova norma técnica complementar;');
+                    setReport({
+                      ...report,
+                      modeloTextos: { ...report.modeloTextos, referenciasNormativas: copy },
+                    });
+                  }}
+                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Adicionar Norma</span>
+                </button>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                {report.modeloTextos.referenciasNormativas.map((norma, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2">
+                    <span className="text-indigo-600 font-bold shrink-0">•</span>
+                    <input
+                      type="text"
+                      value={norma}
+                      onChange={(e) => {
+                        const copy = [...report.modeloTextos.referenciasNormativas];
+                        copy[idx] = e.target.value;
+                        setReport({
+                          ...report,
+                          modeloTextos: { ...report.modeloTextos, referenciasNormativas: copy },
+                        });
+                      }}
+                      className="flex-1 bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-900 focus:ring-1 focus:ring-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const copy = report.modeloTextos.referenciasNormativas.filter((_, i) => i !== idx);
+                        setReport({
+                          ...report,
+                          modeloTextos: { ...report.modeloTextos, referenciasNormativas: copy },
+                        });
+                      }}
+                      className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
+                      title="Remover esta norma"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* SEÇÃO 5: DICIONÁRIO E TERMOS TÉCNICOS */}
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-4">
+              <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-cyan-600" />
+                    3) Dicionário &amp; Abreviações Usadas no Documento
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Termos técnicos explicados para o cliente/síndico na página 2 do laudo.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const copy = [...report.modeloTextos.dicionario];
+                    copy.push({ termo: 'NOVO TERMO', definicao: 'Definição técnica do termo utilizado.' });
+                    setReport({
+                      ...report,
+                      modeloTextos: { ...report.modeloTextos, dicionario: copy },
+                    });
+                  }}
+                  className="px-3 py-1.5 bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Adicionar Termo</span>
+                </button>
+              </div>
+
+              <div className="space-y-2.5 text-xs">
+                {report.modeloTextos.dicionario.map((d, idx) => (
+                  <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+                    <div className="w-full sm:w-48 shrink-0">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Termo / Sigla</label>
+                      <input
+                        type="text"
+                        value={d.termo}
+                        onChange={(e) => {
+                          const copy = [...report.modeloTextos.dicionario];
+                          copy[idx] = { ...copy[idx], termo: e.target.value };
+                          setReport({
+                            ...report,
+                            modeloTextos: { ...report.modeloTextos, dicionario: copy },
+                          });
+                        }}
+                        className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold text-slate-900 focus:ring-1 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div className="flex-1 w-full">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Definição Técnica</label>
+                      <input
+                        type="text"
+                        value={d.definicao}
+                        onChange={(e) => {
+                          const copy = [...report.modeloTextos.dicionario];
+                          copy[idx] = { ...copy[idx], definicao: e.target.value };
+                          setReport({
+                            ...report,
+                            modeloTextos: { ...report.modeloTextos, dicionario: copy },
+                          });
+                        }}
+                        className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:ring-1 focus:ring-cyan-500"
+                      />
                     </div>
                     <button
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
+                        const copy = report.modeloTextos.dicionario.filter((_, i) => i !== idx);
                         setReport({
                           ...report,
-                          responsavelTecnico: {
-                            ...report.responsavelTecnico,
-                            assinaturaUrl: undefined,
-                          },
-                        })
-                      }
-                      className="text-xs text-red-600 hover:underline"
+                          modeloTextos: { ...report.modeloTextos, dicionario: copy },
+                        });
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-red-600 rounded transition-colors self-end sm:self-center"
+                      title="Remover termo"
                     >
-                      Remover Assinatura
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                )}
+                ))}
               </div>
+            </div>
+
+            {/* SEÇÃO 4: RESPONSABILIDADE TÉCNICA & ASSINATURA */}
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-red-600" />
+                    Responsabilidade Técnica &amp; Assinatura Digital
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Dados do Engenheiro e assinatura eletrônica/digitalizada exibida no final do laudo.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsSignatureOpen(true)}
+                  className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
+                >
+                  <Award className="w-4 h-4" />
+                  {report.responsavelTecnico.assinaturaUrl ? 'Alterar Assinatura' : 'Assinar Digitalmente'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-1">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Responsável Técnico
+                  </label>
+                  <input
+                    type="text"
+                    value={report.responsavelTecnico.responsavelTecnico}
+                    onChange={(e) =>
+                      setReport({
+                        ...report,
+                        responsavelTecnico: {
+                          ...report.responsavelTecnico,
+                          responsavelTecnico: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full border border-slate-300 rounded-lg p-2 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Qualificação Profissional
+                  </label>
+                  <input
+                    type="text"
+                    value={report.responsavelTecnico.qualificacao}
+                    onChange={(e) =>
+                      setReport({
+                        ...report,
+                        responsavelTecnico: {
+                          ...report.responsavelTecnico,
+                          qualificacao: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full border border-slate-300 rounded-lg p-2 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Registro CREA / CONFEA
+                  </label>
+                  <input
+                    type="text"
+                    value={report.responsavelTecnico.registroCrea}
+                    onChange={(e) =>
+                      setReport({
+                        ...report,
+                        responsavelTecnico: {
+                          ...report.responsavelTecnico,
+                          registroCrea: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Número / Detalhe da ART
+                  </label>
+                  <input
+                    type="text"
+                    value={report.responsavelTecnico.numeroArt}
+                    onChange={(e) =>
+                      setReport({
+                        ...report,
+                        responsavelTecnico: {
+                          ...report.responsavelTecnico,
+                          numeroArt: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full border border-slate-300 rounded-lg p-2 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Cidade de Emissão
+                  </label>
+                  <input
+                    type="text"
+                    value={report.responsavelTecnico.cidadeEmissao}
+                    onChange={(e) =>
+                      setReport({
+                        ...report,
+                        responsavelTecnico: {
+                          ...report.responsavelTecnico,
+                          cidadeEmissao: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full border border-slate-300 rounded-lg p-2 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Data de Emissão
+                  </label>
+                  <input
+                    type="text"
+                    value={report.responsavelTecnico.dataEmissao}
+                    onChange={(e) =>
+                      setReport({
+                        ...report,
+                        responsavelTecnico: {
+                          ...report.responsavelTecnico,
+                          dataEmissao: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full border border-slate-300 rounded-lg p-2 text-xs"
+                  />
+                </div>
+              </div>
+
+              {report.responsavelTecnico.assinaturaUrl && (
+                <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-32 bg-white border border-slate-300 rounded flex items-center justify-center p-1">
+                      <img
+                        src={report.responsavelTecnico.assinaturaUrl}
+                        alt="Assinatura"
+                        className="max-h-full object-contain"
+                      />
+                    </div>
+                    <span className="text-xs text-slate-600 font-medium">
+                      Assinatura digital inserida no documento final
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReport({
+                        ...report,
+                        responsavelTecnico: {
+                          ...report.responsavelTecnico,
+                          assinaturaUrl: undefined,
+                        },
+                      })
+                    }
+                    className="text-xs text-red-600 hover:underline font-medium"
+                  >
+                    Remover Assinatura
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

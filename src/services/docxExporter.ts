@@ -473,7 +473,7 @@ export async function generateReportDocxBlob(
     new Paragraph({ spacing: { before: 40, after: 40 } }),
     createKeyValueTable([
       { label: 'CLIENTE:', value: report.cliente.cliente },
-      { label: 'LOCAL:', value: report.cliente.local },
+      { label: 'ENDEREÇO:', value: report.cliente.local },
       { label: 'MUNICÍPIO / UF:', value: report.cliente.municipioUf },
       { label: 'CNPJ:', value: report.cliente.cnpj },
       { label: 'RAMO DE ATIVIDADE:', value: report.cliente.ramoAtividade },
@@ -950,7 +950,7 @@ export async function generateReportDocxBlob(
           new TextRun({ text: `${rec}\n`, color: 'B91C1C', size: 19 }),
         ]),
         new TextRun({
-          text: '\nFazer a correção de todos os itens apontados neste relatório, de forma ao sistema operar em sua perfeita harmonia.\n',
+          text: `\n${report.fechamentoRecomendacoesPersonalizado || report.modeloTextos.fechamentoRecomendacoes || 'Fazer a correção de todos os itens apontados neste relatório, de forma ao sistema operar em sua perfeita harmonia.'}\n`,
           bold: true,
           size: 19,
           color: '111827',
@@ -962,7 +962,7 @@ export async function generateReportDocxBlob(
       spacing: { before: 80, after: 60 },
       children: [
         new TextRun({
-          text: '8) CONCLUSÃO FINAL DESTE RELATÓRIO TÉCNICO',
+          text: '8) CONCLUSÃO & PARECER TÉCNICO PERICIAL',
           bold: true,
           size: 22,
           color: '111827',
@@ -970,7 +970,7 @@ export async function generateReportDocxBlob(
       ],
     }),
     new Paragraph({
-      spacing: { after: 100 },
+      spacing: { after: 60 },
       children: [
         new TextRun({
           text: report.conclusaoPersonalizada || report.modeloTextos.conclusaoFinal,
@@ -979,6 +979,21 @@ export async function generateReportDocxBlob(
         }),
       ],
     }),
+    ...(report.parecerArtPersonalizado || report.modeloTextos.parecerArt
+      ? [
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: report.parecerArtPersonalizado || report.modeloTextos.parecerArt || '',
+                size: 19,
+                bold: true,
+                color: '1F2937',
+              }),
+            ],
+          }),
+        ]
+      : []),
 
     // Disposições Finais
     new Table({
@@ -1010,7 +1025,7 @@ export async function generateReportDocxBlob(
                       color: '111827',
                     }),
                     new TextRun({
-                      text: report.modeloTextos.disposicoesFinais,
+                      text: report.disposicoesFinaisPersonalizada || report.modeloTextos.disposicoesFinais,
                       size: 18,
                       color: '1F2937',
                     }),
@@ -1083,6 +1098,8 @@ export async function generateReportDocxBlob(
       ],
     })
   );
+
+  // Final page ends at conclusion & signature
 
   // ==================== DOCUMENT HEADER & FOOTER DEFINITION ====================
   const docHeaderParagraphs: Paragraph[] = [];

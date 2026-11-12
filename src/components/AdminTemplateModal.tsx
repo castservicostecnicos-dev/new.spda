@@ -271,6 +271,30 @@ export const AdminTemplateModal: React.FC<AdminTemplateModalProps> = ({
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
+                  Trecho do Parecer referente à ART &amp; Responsabilidade Técnica (Padrão)
+                </label>
+                <textarea
+                  rows={2}
+                  value={tempTextos.parecerArt || ''}
+                  onChange={(e) => setTempTextos({ ...tempTextos, parecerArt: e.target.value })}
+                  className="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-1 focus:ring-red-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Trecho de Fechamento das Recomendações (Padrão)
+                </label>
+                <input
+                  type="text"
+                  value={tempTextos.fechamentoRecomendacoes || ''}
+                  onChange={(e) => setTempTextos({ ...tempTextos, fechamentoRecomendacoes: e.target.value })}
+                  className="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-1 focus:ring-red-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
                   Disposições Finais &amp; Validade da Inspeção
                 </label>
                 <textarea

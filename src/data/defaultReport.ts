@@ -3,7 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SpdaReport, FixedTextsTemplate, CompanyProfile } from '../types/spda';
+import { SpdaReport, FixedTextsTemplate, CompanyProfile, ReciboEntregaData } from '../types/spda';
+
+export const DEFAULT_RECIBO: ReciboEntregaData = {
+  habilitado: true,
+  titulo: 'TERMO DE RECIBO & PROTOCOLO DE ENTREGA DO LAUDO TÉCNICO',
+  declaracao:
+    'Declaramos para os devidos fins legais e comprobatórios que recebemos nesta data o Laudo Técnico Pericial de Engenharia Elétrica referente ao SPDA (NBR 5419:2026) da referida edificação, acompanhado do relatório fotográfico de inspeção, ensaios de continuidade ôhmica e da respectiva Anotação de Responsabilidade Técnica (ART) emitida junto ao CREA.',
+  trechoDocumentos:
+    'Documentos entregues: 01 (uma) via digital/impressa do Laudo Pericial de SPDA conforme ABNT NBR 5419:2026, Anotação de Responsabilidade Técnica (ART) vinculada ao CREA e Certificados de Calibração dos instrumentos utilizados nas medições.',
+  trechoCiencia:
+    'O cliente/síndico/administrador declara estar plenamente ciente das condições técnicas apuradas nas instalações, das inconformidades registradas e da extrema importância do cumprimento das recomendações prioritárias para a garantia da segurança patrimonial e dos usuários da edificação.',
+  recebedorNome: 'Administração / Síndico Geral',
+  recebedorCargo: 'Síndico(a) / Gestor Predial',
+  recebedorDocumento: '',
+  dataRecebimento: '26 de Outubro de 2026',
+  observacoes: 'Via de protocolo e comprovação de entrega formal da ART e do Laudo Técnico.',
+};
 
 export const DEFAULT_COMPANY: CompanyProfile = {
   nome: 'SJC ENGENHARIA E SOLUÇÕES',
@@ -103,8 +119,12 @@ export const DEFAULT_FIXED_TEXTS: FixedTextsTemplate = {
     'Realizar a troca dos conectores oxidados para maximizar a eficiência do sistema de proteção.',
     'Realizar a troca dos parafusos que fazem a fixação das fitas do sistema, para adequar ao que está definido pela norma.',
   ],
+  fechamentoRecomendacoes:
+    'Fazer a correção de todos os itens apontados neste relatório, de forma ao sistema operar em sua perfeita harmonia.',
   conclusaoFinal:
-    'Conforme descrito no decorrer deste relatório, excluindo-se as observações efetuadas neste documento, podemos concluir que as áreas inspecionadas na relação anexa, estão em condições técnicas adequadas e satisfatórias no que se refere ao Sistema de Proteção Contra Descargas Atmosféricas da norma NBR 5419:2026, quanto aos aspectos de instalação e segurança. Por fim, concluo que as malhas de aterramento e as malhas superiores do sistema de proteção contra descargas atmosféricas em análise atendem aos requisitos dos projetos executivos e normas vigentes citadas no item 01 deste relatório. Este é meu parecer sob a ART em anexo.',
+    'Conforme descrito no decorrer deste relatório, excluindo-se as observações efetuadas neste documento, podemos concluir que as áreas inspecionadas na relação anexa, estão em condições técnicas adequadas e satisfatórias no que se refere ao Sistema de Proteção Contra Descargas Atmosféricas da norma NBR 5419:2026, quanto aos aspectos de instalação e segurança.',
+  parecerArt:
+    'Por fim, concluo que as malhas de aterramento e as malhas superiores do sistema de proteção contra descargas atmosféricas em análise atendem aos requisitos dos projetos executivos e normas vigentes citadas no item 01 deste relatório. Este é meu parecer técnico emitido sob a ART em anexo.',
   disposicoesFinais:
     'Este laudo possui validade técnica de 1 (um) ano a partir da data de emissão, ou conforme periodicidade de inspeção estipulada pela NBR 5419-3:2026 (Tabela 6). O responsável técnico declara que todas as medições foram efetuadas conforme os preceitos éticos e regulamentares do CREA.',
 };
@@ -236,6 +256,7 @@ export function createInitialReport(): SpdaReport {
       dataEmissao: '26 de Outubro de 2026',
       assinaturaUrl: undefined,
     },
+    recibo: { ...DEFAULT_RECIBO },
     modeloTextos: { ...DEFAULT_FIXED_TEXTS },
   };
 }

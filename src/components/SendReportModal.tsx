@@ -138,7 +138,7 @@ export const SendReportModal: React.FC<SendReportModalProps> = ({
     const body = encodeURIComponent(
       `Prezados,\n\nSegue a emissão do Laudo Técnico Pericial de SPDA conforme norma ABNT NBR 5419:2026.\n\n` +
       `Edificação: ${condoName}\n` +
-      `Local: ${report.cliente.local} - ${report.cliente.municipioUf}\n` +
+      `Endereço: ${report.cliente.local} - ${report.cliente.municipioUf}\n` +
       `Responsável Técnico: ${report.responsavelTecnico.responsavelTecnico} (${report.responsavelTecnico.registroCrea})\n` +
       `ART: ${report.responsavelTecnico.numeroArt}\n\n` +
       `O documento completo e autenticado foi emitido e anexado.\n\nAtenciosamente,\n${report.empresa.nome}`

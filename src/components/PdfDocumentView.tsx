@@ -282,7 +282,7 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
                   <span className="uppercase">{report.cliente.cliente}</span>
                 </div>
                 <div className="flex">
-                  <span className="font-bold w-48 shrink-0">LOCAL:</span>
+                  <span className="font-bold w-48 shrink-0">ENDEREÇO:</span>
                   <span>{report.cliente.local}</span>
                 </div>
                 <div className="flex">
@@ -640,20 +640,20 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
         )}
 
         {/* ========================================================
-            FINAL PAGE: CORREÇÕES NECESSÁRIAS, CONCLUSÃO & ASSINATURA
+            PAGE: CORREÇÕES NECESSÁRIAS, PARECER TÉCNICO & ASSINATURA
         ======================================================== */}
         {renderPageShell(
           totalPages,
-          <div className="relative z-10 flex-1 flex flex-col justify-start space-y-3 pt-1">
+          <div className="relative z-10 flex-1 flex flex-col justify-start space-y-2.5 pt-1">
             {/* Chapter 7 */}
-            <div className="space-y-1.5 text-[9px] text-slate-900 leading-tight">
+            <div className="space-y-1 text-[9px] text-slate-900 leading-tight">
               <h3 className="font-bold text-[11px]">
                 7) CORREÇÕES NECESSÁRIAS PARA PROTEÇÃO DAS EDIFICAÇÕES
               </h3>
               <SectionBanner size="sm">
                 Recomendações Técnicas Prioritárias (NBR 5419:2026)
               </SectionBanner>
-              <div className="space-y-1.5 px-1 pt-0.5">
+              <div className="space-y-1 px-1 pt-0.5">
                 {report.modeloTextos.recomendacoesPrioritarias.map((rec, idx) => (
                   <div key={idx} className="text-red-700 font-medium">
                     <span className="font-bold">7.{idx + 1}- </span>
@@ -669,35 +669,41 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
                   </div>
                 ))}
                 <p className="text-slate-900 font-bold pt-1">
-                  Fazer a correção de todos os itens apontados neste relatório, de forma ao sistema
-                  operar em sua perfeita harmonia.
+                  {report.fechamentoRecomendacoesPersonalizado ||
+                    report.modeloTextos.fechamentoRecomendacoes ||
+                    'Fazer a correção de todos os itens apontados neste relatório, de forma ao sistema operar em sua perfeita harmonia.'}
                 </p>
               </div>
             </div>
 
-            {/* Chapter 8: Conclusão Final */}
-            <div className="space-y-1.5 text-[9px] text-slate-900 leading-tight pt-1">
+            {/* Chapter 8: Conclusão Final / Parecer Técnico */}
+            <div className="space-y-1 text-[9px] text-slate-900 leading-tight pt-0.5">
               <h3 className="font-bold text-[11px]">
-                8) CONCLUSÃO FINAL DESTE RELATÓRIO TÉCNICO
+                8) CONCLUSÃO &amp; PARECER TÉCNICO PERICIAL
               </h3>
               <p className="leading-relaxed px-1">
                 {report.conclusaoPersonalizada || report.modeloTextos.conclusaoFinal}
               </p>
+              {(report.parecerArtPersonalizado || report.modeloTextos.parecerArt) && (
+                <p className="leading-relaxed px-1 pt-1 font-medium text-slate-800">
+                  {report.parecerArtPersonalizado || report.modeloTextos.parecerArt}
+                </p>
+              )}
             </div>
 
             {/* Disposições Finais & Validade */}
-            <div className="border border-slate-700/80 p-2.5 rounded-[2px] bg-white/90">
-              <h4 className="font-bold text-[9px] text-slate-900 mb-1">
+            <div className="border border-slate-700/80 p-2 rounded-[2px] bg-white/90">
+              <h4 className="font-bold text-[9px] text-slate-900 mb-0.5">
                 DISPOSIÇÕES FINAIS &amp; VALIDADE DA INSPEÇÃO:
               </h4>
               <p className="text-[8.5px] text-slate-800 leading-relaxed font-medium">
-                {report.modeloTextos.disposicoesFinais}
+                {report.disposicoesFinaisPersonalizada || report.modeloTextos.disposicoesFinais}
               </p>
             </div>
 
             {/* Emission Date & Signature Block */}
-            <div className="pt-4 flex flex-col items-center justify-end text-center space-y-1">
-              <div className="w-full text-right text-[10px] text-slate-900 font-bold mb-3 pr-4">
+            <div className="pt-2 flex flex-col items-center justify-end text-center space-y-1">
+              <div className="w-full text-right text-[10px] text-slate-900 font-bold mb-2 pr-4">
                 {report.responsavelTecnico.cidadeEmissao},{' '}
                 {report.responsavelTecnico.dataEmissao}.
               </div>
@@ -705,7 +711,7 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
               {/* Engineer Signature */}
               <div className="flex flex-col items-center justify-center w-80">
                 {report.responsavelTecnico.assinaturaUrl ? (
-                  <div className="h-16 flex items-center justify-center">
+                  <div className="h-14 flex items-center justify-center">
                     <img
                       src={report.responsavelTecnico.assinaturaUrl}
                       alt="Assinatura do Responsável Técnico"
@@ -713,7 +719,7 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
                     />
                   </div>
                 ) : (
-                  <div className="h-10 flex items-center justify-center text-slate-400 italic text-[10px]">
+                  <div className="h-8 flex items-center justify-center text-slate-400 italic text-[10px]">
                     (Assinatura digitalizada ou eletrônica)
                   </div>
                 )}

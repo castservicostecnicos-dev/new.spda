@@ -5,6 +5,7 @@
 
 import { SpdaReport, Tower, PhotoItem } from '../types/spda';
 import { getBuildingSampleImages } from '../data/samplePhotos';
+import { DEFAULT_RECIBO, DEFAULT_FIXED_TEXTS } from '../data/defaultReport';
 
 /**
  * Creates high-fidelity 3:4 SVG data URLs for sample repairs
@@ -313,6 +314,23 @@ export function upgradeAndRepairReport(report: SpdaReport): {
       modified = true;
       details.push('Fotos da Área Comum sincronizadas para 3x4');
     }
+  }
+
+  // Ensure recibo data is initialized
+  if (!updated.recibo) {
+    updated.recibo = { ...DEFAULT_RECIBO };
+    modified = true;
+    details.push('Termo de recibo e entrega inicializado');
+  } else {
+    updated.recibo = { ...DEFAULT_RECIBO, ...updated.recibo };
+  }
+
+  // Ensure parecer snippet defaults exist
+  if (!updated.modeloTextos.fechamentoRecomendacoes) {
+    updated.modeloTextos.fechamentoRecomendacoes = DEFAULT_FIXED_TEXTS.fechamentoRecomendacoes;
+  }
+  if (!updated.modeloTextos.parecerArt) {
+    updated.modeloTextos.parecerArt = DEFAULT_FIXED_TEXTS.parecerArt;
   }
 
   return { report: updated, modified, details };

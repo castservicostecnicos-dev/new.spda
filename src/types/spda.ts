@@ -113,6 +113,19 @@ export interface CommonAreaSection {
   observacoes?: string;
 }
 
+export interface ReciboEntregaData {
+  habilitado: boolean;
+  titulo: string;
+  declaracao: string;
+  trechoDocumentos: string;
+  trechoCiencia: string;
+  recebedorNome: string;
+  recebedorCargo: string;
+  recebedorDocumento: string;
+  dataRecebimento: string;
+  observacoes?: string;
+}
+
 export interface FixedTextsTemplate {
   objetoInspecao: string;
   introducao11: string;
@@ -125,7 +138,9 @@ export interface FixedTextsTemplate {
   dicionario: Array<{ termo: string; definicao: string }>;
   notaCrea: string;
   recomendacoesPrioritarias: string[];
+  fechamentoRecomendacoes?: string;
   conclusaoFinal: string;
+  parecerArt?: string;
   disposicoesFinais: string;
 }
 
@@ -141,7 +156,11 @@ export interface SpdaReport {
   torres: Tower[];
   areaComum: CommonAreaSection;
   recomendacoesPersonalizadas: string[];
+  fechamentoRecomendacoesPersonalizado?: string;
   conclusaoPersonalizada?: string;
+  parecerArtPersonalizado?: string;
+  disposicoesFinaisPersonalizada?: string;
+  recibo?: ReciboEntregaData;
   responsavelTecnico: TechnicalResponsibility;
   modeloTextos: FixedTextsTemplate;
 }
