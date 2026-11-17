@@ -507,7 +507,8 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
             {/* 4) Histórico de Ocorrências */}
             <div className="space-y-1 pt-1 text-[9px] text-slate-900 leading-tight">
               <h3 className="font-bold text-[10.5px]">
-                4) HISTÓRICO DE OCORRÊNCIAS &amp; DESCARGAS ATMOSFÉRICAS
+                {report.modeloTextos.tituloSecao4 ||
+                  '4) HISTÓRICO DE OCORRÊNCIAS & DESCARGAS ATMOSFÉRICAS'}
               </h3>
               <p>
                 <span className="font-bold">4.1- Histórico: </span>
@@ -530,12 +531,12 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
             {/* Chapter 5 */}
             <div className="space-y-2 text-[9px] text-slate-900 leading-tight">
               <h3 className="font-bold text-[11px]">
-                5) INSTRUMENTAÇÃO TÉCNICA E CRITÉRIOS DE INSPEÇÃO
+                {report.modeloTextos.tituloSecao5 ||
+                  '5) INSTRUMENTAÇÃO TÉCNICA E CRITÉRIOS DE INSPEÇÃO'}
               </h3>
               <p>
-                Foram efetuadas medidas de continuidade elétrica e inspeção visual, com o uso do{' '}
-                <span className="font-bold">{report.instrumentacao.equipamentoNome}</span>. Os
-                certificados de calibração estão em anexo.
+                {report.instrumentacao.textoIntroducao ||
+                  `Foram efetuadas medidas de continuidade elétrica e inspeção visual, com o uso do ${report.instrumentacao.equipamentoNome}. Os certificados de calibração estão em anexo.`}
               </p>
 
               <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-[2px] space-y-1">
@@ -563,7 +564,8 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
             {/* Parâmetros Normativos de Continuidade */}
             <div className="space-y-2">
               <SectionBanner size="sm">
-                PARÂMETROS NORMATIVOS DE CONTINUIDADE (ABNT NBR 5419:2026)
+                {report.instrumentacao.tituloParametrosContinuidades ||
+                  'PARÂMETROS NORMATIVOS DE CONTINUIDADE (ABNT NBR 5419:2026)'}
               </SectionBanner>
               <div className="space-y-2 text-[9px] text-slate-900 px-1">
                 {report.instrumentacao.parametrosContinuidades.map((param) => (
@@ -594,7 +596,8 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
             {/* Proteção contra surtos em quadros elétricos */}
             <div className="space-y-2 pt-1">
               <SectionBanner size="sm">
-                PROTEÇÃO CONTRA SURTOS EM QUADROS ELÉTRICOS (ABNT NBR 5410 / NBR 5419-4)
+                {report.instrumentacao.tituloDps ||
+                  'PROTEÇÃO CONTRA SURTOS EM QUADROS ELÉTRICOS (ABNT NBR 5410 / NBR 5419-4)'}
               </SectionBanner>
               <p className="text-[9px] text-slate-800 leading-relaxed px-1">
                 {report.instrumentacao.textoDps}
@@ -633,6 +636,17 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
                 if (block.type === 'photo_row' && block.photos) {
                   return renderPhotoRow(block.photos, bIdx);
                 }
+                if (block.type === 'tower_note' && block.noteText) {
+                  return (
+                    <div
+                      key={`tn-${bIdx}`}
+                      className="mt-1 mb-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-[2px] text-[8.5px] text-slate-800 leading-snug"
+                    >
+                      <span className="font-bold text-slate-900">Observações Técnicas: </span>
+                      <span>{block.noteText}</span>
+                    </div>
+                  );
+                }
                 return null;
               })}
             </div>
@@ -648,10 +662,12 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
             {/* Chapter 7 */}
             <div className="space-y-1 text-[9px] text-slate-900 leading-tight">
               <h3 className="font-bold text-[11px]">
-                7) CORREÇÕES NECESSÁRIAS PARA PROTEÇÃO DAS EDIFICAÇÕES
+                {report.modeloTextos.tituloSecao7 ||
+                  '7) CORREÇÕES NECESSÁRIAS PARA PROTEÇÃO DAS EDIFICAÇÕES'}
               </h3>
               <SectionBanner size="sm">
-                Recomendações Técnicas Prioritárias (NBR 5419:2026)
+                {report.modeloTextos.subtituloSecao7 ||
+                  'Recomendações Técnicas Prioritárias (NBR 5419:2026)'}
               </SectionBanner>
               <div className="space-y-1 px-1 pt-0.5">
                 {report.modeloTextos.recomendacoesPrioritarias.map((rec, idx) => (
@@ -669,9 +685,9 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
                   </div>
                 ))}
                 <p className="text-slate-900 font-bold pt-1">
-                  {report.fechamentoRecomendacoesPersonalizado ||
-                    report.modeloTextos.fechamentoRecomendacoes ||
-                    'Fazer a correção de todos os itens apontados neste relatório, de forma ao sistema operar em sua perfeita harmonia.'}
+                  {report.fechamentoRecomendacoesPersonalizado ??
+                    (report.modeloTextos.fechamentoRecomendacoes ||
+                      'Fazer a correção de todos os itens apontados neste relatório, de forma ao sistema operar em sua perfeita harmonia.')}
                 </p>
               </div>
             </div>
@@ -679,14 +695,15 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
             {/* Chapter 8: Conclusão Final / Parecer Técnico */}
             <div className="space-y-1 text-[9px] text-slate-900 leading-tight pt-0.5">
               <h3 className="font-bold text-[11px]">
-                8) CONCLUSÃO &amp; PARECER TÉCNICO PERICIAL
+                {report.modeloTextos.tituloSecao8 ||
+                  '8) CONCLUSÃO & PARECER TÉCNICO PERICIAL'}
               </h3>
               <p className="leading-relaxed px-1">
-                {report.conclusaoPersonalizada || report.modeloTextos.conclusaoFinal}
+                {report.conclusaoPersonalizada ?? report.modeloTextos.conclusaoFinal}
               </p>
-              {(report.parecerArtPersonalizado || report.modeloTextos.parecerArt) && (
+              {(report.parecerArtPersonalizado ?? report.modeloTextos.parecerArt) && (
                 <p className="leading-relaxed px-1 pt-1 font-medium text-slate-800">
-                  {report.parecerArtPersonalizado || report.modeloTextos.parecerArt}
+                  {report.parecerArtPersonalizado ?? report.modeloTextos.parecerArt}
                 </p>
               )}
             </div>
@@ -694,10 +711,11 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
             {/* Disposições Finais & Validade */}
             <div className="border border-slate-700/80 p-2 rounded-[2px] bg-white/90">
               <h4 className="font-bold text-[9px] text-slate-900 mb-0.5">
-                DISPOSIÇÕES FINAIS &amp; VALIDADE DA INSPEÇÃO:
+                {report.modeloTextos.tituloDisposicoesFinais ||
+                  'DISPOSIÇÕES FINAIS & VALIDADE DA INSPEÇÃO:'}
               </h4>
               <p className="text-[8.5px] text-slate-800 leading-relaxed font-medium">
-                {report.disposicoesFinaisPersonalizada || report.modeloTextos.disposicoesFinais}
+                {report.disposicoesFinaisPersonalizada ?? report.modeloTextos.disposicoesFinais}
               </p>
             </div>
 

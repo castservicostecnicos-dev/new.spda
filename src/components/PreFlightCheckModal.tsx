@@ -272,7 +272,7 @@ export const PreFlightCheckModal: React.FC<PreFlightCheckModalProps> = ({
             className="px-3 py-2 text-xs font-semibold text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-100 rounded-lg flex items-center justify-center gap-1.5 transition-colors"
           >
             <Download className="w-4 h-4 text-slate-500" />
-            Salvar Fotos no Computador (ZIP)
+            Salvar Fotos Originais (Celular / ZIP)
           </button>
 
           <div className="flex flex-wrap items-center justify-end gap-2">

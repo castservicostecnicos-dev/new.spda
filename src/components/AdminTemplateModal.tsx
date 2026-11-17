@@ -3,10 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FixedTextsTemplate, CompanyProfile } from '../types/spda';
 import { DEFAULT_FIXED_TEXTS, DEFAULT_COMPANY } from '../data/defaultReport';
-import { Settings, Save, RotateCcw, X, Building, BookOpen, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { CompanyLogo } from './CompanyLogo';
+import { resizeLogoToDataUrl } from '../services/storage';
+import { Settings, Save, RotateCcw, X, Building, BookOpen, Plus, Trash2, Upload } from 'lucide-react';
 
 interface AdminTemplateModalProps {
   isOpen: boolean;
@@ -27,16 +29,28 @@ export const AdminTemplateModal: React.FC<AdminTemplateModalProps> = ({
   const [tempEmpresa, setTempEmpresa] = useState<CompanyProfile>({ ...empresa });
   const [tempTextos, setTempTextos] = useState<FixedTextsTemplate>({ ...modeloTextos });
 
+  useEffect(() => {
+    if (isOpen) {
+      setTempEmpresa({ ...empresa });
+      setTempTextos({ ...modeloTextos });
+    }
+  }, [isOpen, empresa, modeloTextos]);
+
   if (!isOpen) return null;
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setTempEmpresa((prev) => ({ ...prev, logoUrl: ev.target?.result as string }));
-    };
-    reader.readAsDataURL(file);
+    try {
+      const resizedDataUrl = await resizeLogoToDataUrl(file);
+      setTempEmpresa((prev) => ({ ...prev, logoUrl: resizedDataUrl }));
+    } catch {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setTempEmpresa((prev) => ({ ...prev, logoUrl: ev.target?.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleResetDefaults = () => {
@@ -172,7 +186,7 @@ export const AdminTemplateModal: React.FC<AdminTemplateModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Texto da Marca d'Água</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Texto da Marca d&apos;Água</label>
                   <input
                     type="text"
                     value={tempEmpresa.marcaDaguaTexto}
@@ -182,27 +196,131 @@ export const AdminTemplateModal: React.FC<AdminTemplateModalProps> = ({
                 </div>
               </div>
 
-              {/* Logo customization */}
-              <div className="pt-2 border-t border-slate-200">
-                <label className="block font-semibold text-slate-700 mb-1.5">
-                  Logotipo Personalizado (opcional - padrão: SJC Engenharia &amp; Soluções)
+              {/* Editable Header & Footer texts */}
+              <div className="pt-3 border-t border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800">
+                    Textos do Cabeçalho &amp; Rodapé das Páginas
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setTempEmpresa((prev) => ({
+                        ...prev,
+                        cabecalhoLinha1: DEFAULT_COMPANY.cabecalhoLinha1,
+                        cabecalhoLinha2: DEFAULT_COMPANY.cabecalhoLinha2,
+                        rodapeLinha1: DEFAULT_COMPANY.rodapeLinha1,
+                        rodapeLinha2: DEFAULT_COMPANY.rodapeLinha2,
+                      }))
+                    }
+                    className="text-[11px] font-semibold text-slate-600 hover:text-red-600"
+                  >
+                    Restaurar Textos Padrão
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Cabeçalho — Texto Principal (Linha 1)
+                    </label>
+                    <input
+                      type="text"
+                      value={tempEmpresa.cabecalhoLinha1 ?? tempEmpresa.nome}
+                      onChange={(e) =>
+                        setTempEmpresa({ ...tempEmpresa, cabecalhoLinha1: e.target.value })
+                      }
+                      className="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-1 focus:ring-red-500"
+                      placeholder="Ex: SJC ENGENHARIA E SOLUÇÕES"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Cabeçalho — Subtítulo (Linha 2)
+                    </label>
+                    <input
+                      type="text"
+                      value={tempEmpresa.cabecalhoLinha2 ?? ''}
+                      onChange={(e) =>
+                        setTempEmpresa({ ...tempEmpresa, cabecalhoLinha2: e.target.value })
+                      }
+                      className="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-1 focus:ring-red-500"
+                      placeholder="Ex: Laudo Técnico Pericial de SPDA — ABNT NBR 5419:2026"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Rodapé — Linha 1
+                    </label>
+                    <input
+                      type="text"
+                      value={
+                        tempEmpresa.rodapeLinha1 ??
+                        `${tempEmpresa.nome} - CNPJ: ${tempEmpresa.cnpj} – FONE: ${tempEmpresa.telefone}`
+                      }
+                      onChange={(e) =>
+                        setTempEmpresa({ ...tempEmpresa, rodapeLinha1: e.target.value })
+                      }
+                      className="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-1 focus:ring-red-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Rodapé — Linha 2
+                    </label>
+                    <input
+                      type="text"
+                      value={
+                        tempEmpresa.rodapeLinha2 ??
+                        `${tempEmpresa.endereco} – ${tempEmpresa.cidadeUf}`
+                      }
+                      onChange={(e) =>
+                        setTempEmpresa({ ...tempEmpresa, rodapeLinha2: e.target.value })
+                      }
+                      className="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-1 focus:ring-red-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Logo customization with live preview */}
+              <div className="pt-3 border-t border-slate-200 space-y-2">
+                <label className="block font-semibold text-slate-700">
+                  Logotipo no Cabeçalho (PNG, JPG ou SVG)
                 </label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
-                  />
-                  {tempEmpresa.logoUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setTempEmpresa({ ...tempEmpresa, logoUrl: undefined })}
-                      className="text-xs text-red-600 hover:underline"
-                    >
-                      Restaurar Logotipo SJC
-                    </button>
-                  )}
+                <div className="flex flex-wrap items-center justify-between gap-4 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-white border border-slate-200 rounded-md px-3 py-1.5 flex items-center justify-center min-w-[120px]">
+                      <CompanyLogo customLogoUrl={tempEmpresa.logoUrl} height={42} />
+                    </div>
+                    <div className="text-[11px] text-slate-600">
+                      <div className="font-semibold text-slate-800">
+                        {tempEmpresa.logoUrl ? 'Logotipo personalizado ativo' : 'Logotipo padrão SJC ativo'}
+                      </div>
+                      <div>Aplicado automaticamente no PDF e no Word (.docx).</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-xs font-semibold inline-flex items-center gap-1.5">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Trocar Logo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    {tempEmpresa.logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setTempEmpresa({ ...tempEmpresa, logoUrl: undefined })}
+                        className="px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-md border border-red-200"
+                      >
+                        Restaurar Padrão
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

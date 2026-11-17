@@ -27,6 +27,10 @@ export const DEFAULT_COMPANY: CompanyProfile = {
   telefone: '(12) 98106-3344',
   endereco: 'RUA ISAAC NEWTON, 98 JD. ORIENTE',
   cidadeUf: 'SÃO JOSÉ DOS CAMPOS - SP',
+  cabecalhoLinha1: 'SJC ENGENHARIA E SOLUÇÕES',
+  cabecalhoLinha2: 'Laudo Técnico Pericial de SPDA — ABNT NBR 5419:2026',
+  rodapeLinha1: 'SJC ENGENHARIA E SOLUÇÕES - CNPJ: 18.472.071/0001-52 – FONE: (12) 98106-3344',
+  rodapeLinha2: 'RUA ISAAC NEWTON, 98 JD. ORIENTE – SÃO JOSÉ DOS CAMPOS - SP',
   marcaDaguaTexto: 'SPDA 2026',
   marcaDaguaOpacidade: 0.08,
 };
@@ -112,6 +116,14 @@ export const DEFAULT_FIXED_TEXTS: FixedTextsTemplate = {
   ],
   notaCrea:
     'Inspeção realizada por engenheiro legalmente habilitado, com registro ativo e emissão da ART correspondente, assegurando o rigor técnico e legalidade das medições.',
+  tituloSecao4: '4) HISTÓRICO DE OCORRÊNCIAS & DESCARGAS ATMOSFÉRICAS',
+  tituloSecao5: '5) INSTRUMENTAÇÃO TÉCNICA E CRITÉRIOS DE INSPEÇÃO',
+  tituloSecao6Prefixo: 'VISTORIA & ENSAIOS TÉCNICOS',
+  subtituloSecao6Ensaio: 'PONTOS DE ENSAIO DE CONTINUIDADE ÔHMICA (MILIOHMÍMETRO)',
+  subtituloSecao6Spda: 'VISTORIA DO SPDA EXISTENTE, CAPTORES & DESCIDAS',
+  subtituloSecao6Quadros: 'ANÁLISE DOS QUADROS DE ENERGIA & DPS (ABNT NBR 5410)',
+  tituloSecao7: '7) CORREÇÕES NECESSÁRIAS PARA PROTEÇÃO DAS EDIFICAÇÕES',
+  subtituloSecao7: 'Recomendações Técnicas Prioritárias (NBR 5419:2026)',
   recomendacoesPrioritarias: [
     'Corrigir para que toda massa metálica da parte superior seja aterrada e equipotencializadas ao sistema.',
     'Manter a limpeza das caixas de inspeção, deixando livre de todo tipo de sujidade, evitando umidade.',
@@ -121,10 +133,12 @@ export const DEFAULT_FIXED_TEXTS: FixedTextsTemplate = {
   ],
   fechamentoRecomendacoes:
     'Fazer a correção de todos os itens apontados neste relatório, de forma ao sistema operar em sua perfeita harmonia.',
+  tituloSecao8: '8) CONCLUSÃO & PARECER TÉCNICO PERICIAL',
   conclusaoFinal:
     'Conforme descrito no decorrer deste relatório, excluindo-se as observações efetuadas neste documento, podemos concluir que as áreas inspecionadas na relação anexa, estão em condições técnicas adequadas e satisfatórias no que se refere ao Sistema de Proteção Contra Descargas Atmosféricas da norma NBR 5419:2026, quanto aos aspectos de instalação e segurança.',
   parecerArt:
     'Por fim, concluo que as malhas de aterramento e as malhas superiores do sistema de proteção contra descargas atmosféricas em análise atendem aos requisitos dos projetos executivos e normas vigentes citadas no item 01 deste relatório. Este é meu parecer técnico emitido sob a ART em anexo.',
+  tituloDisposicoesFinais: 'DISPOSIÇÕES FINAIS & VALIDADE DA INSPEÇÃO:',
   disposicoesFinais:
     'Este laudo possui validade técnica de 1 (um) ano a partir da data de emissão, ou conforme periodicidade de inspeção estipulada pela NBR 5419-3:2026 (Tabela 6). O responsável técnico declara que todas as medições foram efetuadas conforme os preceitos éticos e regulamentares do CREA.',
 };
@@ -166,6 +180,8 @@ export function createInitialReport(): SpdaReport {
         'A ocorrência de problemas com equipamentos se deve ao fato de descargas nas proximidades gerarem pulsos eletromagnéticos que viajam pela rede elétrica sem blindagem suficiente. Com isso, é indispensável a instalação de supressores de surtos (DPS) coordenados nos quadros de distribuição.',
     },
     instrumentacao: {
+      textoIntroducao:
+        'Foram efetuadas medidas de continuidade elétrica e inspeção visual, com o uso do Miliohmímetro HTM-01 - HI-TECH. Os certificados de calibração estão em anexo.',
       equipamentoNome: 'Miliohmímetro HTM-01 - HI-TECH',
       equipamentoDescricao:
         'O miliohmímetro é um instrumento portátil, utiliza o método dos 4 terminais (método de Kelvin) para evitar erros na medição provocados pelos cabos de prova e suas resistências de contato.',
@@ -173,6 +189,8 @@ export function createInitialReport(): SpdaReport {
       correnteEnsaio: '1,2 Amperes',
       tipoCorrente: 'Corrente DC',
       certCalibracaoAnexo: true,
+      tituloParametrosContinuidades:
+        'PARÂMETROS NORMATIVOS DE CONTINUIDADE (ABNT NBR 5419:2026)',
       parametrosContinuidades: [
         {
           id: '1',
@@ -203,6 +221,8 @@ export function createInitialReport(): SpdaReport {
           status: 'LIMPEZA PENDENTE',
         },
       ],
+      tituloDps:
+        'PROTEÇÃO CONTRA SURTOS EM QUADROS ELÉTRICOS (ABNT NBR 5410 / NBR 5419-4)',
       textoDps:
         'Todos os quadros de distribuição (QGBTs, parciais e de comando) devem possuir Dispositivos de Proteção contra Surtos (DPS) coordenados tipo 1 e tipo 2 em pleno funcionamento. A ausência de DPS deixa circuitos e edificações vulneráveis a danos catastróficos.',
     },

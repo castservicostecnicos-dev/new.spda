@@ -19,10 +19,11 @@ import {
   Footer,
   PageNumber,
   ShadingType,
+  VerticalAlignTable,
   convertMillimetersToTwip,
 } from 'docx';
 import { SpdaReport, PhotoItem } from '../types/spda';
-import { getOriginalPhoto } from './storage';
+import { getOriginalPhoto, downscaleBlobToPrintUint8Array } from './storage';
 import { buildTowerPages } from '../utils/documentPaginator';
 import { getReportFileName } from './pdfExporter';
 
@@ -72,6 +73,78 @@ async function urlToUint8Array(url: string): Promise<Uint8Array | null> {
   }
 }
 
+const DEFAULT_SJC_LOGO_SVG = `<svg viewBox="0 0 240 85" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="sjcRedGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#991b1b"/><stop offset="50%" stop-color="#b91c1c"/><stop offset="100%" stop-color="#7f1d1d"/></linearGradient><linearGradient id="sjcMetalGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#2c3038"/><stop offset="100%" stop-color="#181a1e"/></linearGradient><linearGradient id="silverLetters" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#e2e8f0"/><stop offset="100%" stop-color="#94a3b8"/></linearGradient></defs><rect x="2" y="2" width="236" height="81" rx="4" fill="url(#sjcMetalGrad)" stroke="#475569" stroke-width="1.5"/><path d="M 2 6 Q 2 2 6 2 L 234 2 Q 238 2 238 6 L 238 22 L 2 22 Z" fill="url(#sjcRedGrad)"/><text x="120" y="16" fill="#ffffff" font-family="Arial, sans-serif" font-size="9.5" font-weight="800" letter-spacing="1.8" text-anchor="middle">ENGENHARIA &amp; SOLUÇÕES</text><g transform="translate(18, 30)"><path d="M 50 10 C 45 4, 25 3, 15 12 C 5 21, 20 28, 35 32 C 55 36, 52 46, 38 48 C 22 49, 10 44, 5 36 L 15 36 C 18 41, 26 43, 38 42 C 45 41, 46 36, 34 32 C 16 26, 8 20, 18 8 C 28 -2, 50 -1, 58 8 Z" fill="url(#silverLetters)" stroke="#334155" stroke-width="0.8"/><path d="M 85 2 L 98 2 L 98 34 C 98 44, 90 48, 75 48 C 65 48, 58 43, 56 36 L 68 36 C 69 40, 72 42, 78 42 C 84 42, 86 39, 86 33 L 86 2 Z" fill="url(#silverLetters)" stroke="#334155" stroke-width="0.8"/><path d="M 155 12 L 145 16 C 142 8, 134 5, 122 5 C 105 5, 100 16, 100 25 C 100 34, 106 45, 124 45 C 135 45, 143 41, 147 34 L 157 37 C 151 47, 139 51, 122 51 C 94 51, 88 35, 88 25 C 88 15, 96 0, 123 0 C 141 0, 152 6, 155 12 Z" fill="url(#silverLetters)" stroke="#334155" stroke-width="0.8"/></g></svg>`;
+
+interface DocxLogoData {
+  bytes: Uint8Array;
+  width: number;
+  height: number;
+}
+
+/**
+ * Loads either the user-uploaded header logo or the default SJC SVG logo,
+ * rasterizes to transparent high-res PNG, and returns proportional Word dimensions.
+ */
+async function loadLogoForDocx(customLogoUrl?: string): Promise<DocxLogoData | null> {
+  const sourceUrl =
+    customLogoUrl ||
+    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(DEFAULT_SJC_LOGO_SVG)}`;
+
+  try {
+    return await new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const natW = img.naturalWidth || 240;
+          const natH = img.naturalHeight || 85;
+          const maxDocW = 128;
+          const maxDocH = 40;
+          const docScale = Math.min(maxDocW / natW, maxDocH / natH);
+          const displayW = Math.max(24, Math.round(natW * docScale));
+          const displayH = Math.max(16, Math.round(natH * docScale));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = displayW * 3;
+          canvas.height = displayH * 3;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(null);
+            return;
+          }
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              resolve(null);
+              return;
+            }
+            blob
+              .arrayBuffer()
+              .then((ab) =>
+                resolve({
+                  bytes: new Uint8Array(ab),
+                  width: displayW,
+                  height: displayH,
+                })
+              )
+              .catch(() => resolve(null));
+          }, 'image/png');
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = sourceUrl;
+    });
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Generates the complete SPDA Report as a Word (.docx) Blob
  * perfectly matching the visual structure, layout, typography,
@@ -87,7 +160,6 @@ export async function generateReportDocxBlob(
   let fotoAereaBytes: Uint8Array | null = null;
   let fotoFachadaBytes: Uint8Array | null = null;
   let assinaturaBytes: Uint8Array | null = null;
-  let logoBytes: Uint8Array | null = null;
 
   if (report.edificacao.fotoAereaUrl) {
     fotoAereaBytes = await urlToUint8Array(report.edificacao.fotoAereaUrl);
@@ -98,9 +170,7 @@ export async function generateReportDocxBlob(
   if (report.responsavelTecnico.assinaturaUrl) {
     assinaturaBytes = await urlToUint8Array(report.responsavelTecnico.assinaturaUrl);
   }
-  if (report.empresa.logoUrl && !report.empresa.logoUrl.startsWith('data:image/svg')) {
-    logoBytes = await urlToUint8Array(report.empresa.logoUrl);
-  }
+  const logoData = await loadLogoForDocx(report.empresa.logoUrl);
 
   // Pre-load photo bytes for all towers
   const photoBytesMap = new Map<string, Uint8Array>();
@@ -116,21 +186,25 @@ export async function generateReportDocxBlob(
   const total = allPhotos.length;
   for (let i = 0; i < total; i++) {
     const photo = allPhotos[i];
-    if (onProgress) onProgress(`Carregando fotos em alta resolução (${i + 1}/${total})...`);
+    if (onProgress) onProgress(`Carregando fotos em qualidade de impressão (${i + 1}/${total})...`);
 
     let bytes: Uint8Array | null = null;
-    try {
-      const orig = await getOriginalPhoto(photo.id);
-      if (orig && orig.blob) {
-        const ab = await orig.blob.arrayBuffer();
-        bytes = new Uint8Array(ab);
-      }
-    } catch {
-      // ignore
+
+    // 1. Prioritize the print-ready reduced image stored in the report
+    if (photo.previewUrl) {
+      bytes = await urlToUint8Array(photo.previewUrl);
     }
 
-    if (!bytes && photo.previewUrl) {
-      bytes = await urlToUint8Array(photo.previewUrl);
+    // 2. Fallback: load original from IndexedDB and downscale to print-ready size
+    if (!bytes) {
+      try {
+        const orig = await getOriginalPhoto(photo.id);
+        if (orig && orig.blob) {
+          bytes = await downscaleBlobToPrintUint8Array(orig.blob, 900, 0.9);
+        }
+      } catch {
+        // ignore
+      }
     }
 
     if (bytes) {
@@ -709,7 +783,7 @@ export async function generateReportDocxBlob(
           size: 19,
         }),
         new TextRun({
-          text: '4) HISTÓRICO DE OCORRÊNCIAS & DESCARGAS ATMOSFÉRICAS\n',
+          text: `${report.modeloTextos.tituloSecao4 || '4) HISTÓRICO DE OCORRÊNCIAS & DESCARGAS ATMOSFÉRICAS'}\n`,
           bold: true,
           size: 21,
           color: '111827',
@@ -729,7 +803,9 @@ export async function generateReportDocxBlob(
       spacing: { before: 60, after: 80 },
       children: [
         new TextRun({
-          text: '5) INSTRUMENTAÇÃO TÉCNICA E CRITÉRIOS DE INSPEÇÃO',
+          text:
+            report.modeloTextos.tituloSecao5 ||
+            '5) INSTRUMENTAÇÃO TÉCNICA E CRITÉRIOS DE INSPEÇÃO',
           bold: true,
           size: 22,
           color: '111827',
@@ -740,16 +816,10 @@ export async function generateReportDocxBlob(
       spacing: { after: 100 },
       children: [
         new TextRun({
-          text: `Foram efetuadas medidas de continuidade elétrica e inspeção visual, com o uso do equipamento `,
-          size: 19,
-        }),
-        new TextRun({
-          text: `${report.instrumentacao.equipamentoNome}`,
-          bold: true,
-          size: 19,
-        }),
-        new TextRun({
-          text: `. Os certificados de calibração estão em anexo.\n\n`,
+          text: `${
+            report.instrumentacao.textoIntroducao ||
+            `Foram efetuadas medidas de continuidade elétrica e inspeção visual, com o uso do equipamento ${report.instrumentacao.equipamentoNome}. Os certificados de calibração estão em anexo.`
+          }\n\n`,
           size: 19,
         }),
       ],
@@ -805,7 +875,10 @@ export async function generateReportDocxBlob(
     }),
 
     new Paragraph({ spacing: { before: 100, after: 60 } }),
-    createBanner('PARÂMETROS NORMATIVOS DE CONTINUIDADE (ABNT NBR 5419:2026)'),
+    createBanner(
+      report.instrumentacao.tituloParametrosContinuidades ||
+        'PARÂMETROS NORMATIVOS DE CONTINUIDADE (ABNT NBR 5419:2026)'
+    ),
     new Paragraph({ spacing: { before: 40, after: 40 } }),
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
@@ -875,7 +948,10 @@ export async function generateReportDocxBlob(
     }),
 
     new Paragraph({ spacing: { before: 100, after: 60 } }),
-    createBanner('PROTEÇÃO CONTRA SURTOS EM QUADROS ELÉTRICOS (ABNT NBR 5410 / NBR 5419-4)'),
+    createBanner(
+      report.instrumentacao.tituloDps ||
+        'PROTEÇÃO CONTRA SURTOS EM QUADROS ELÉTRICOS (ABNT NBR 5410 / NBR 5419-4)'
+    ),
     new Paragraph({
       spacing: { before: 40, after: 40 },
       children: [
@@ -914,6 +990,16 @@ export async function generateReportDocxBlob(
         docChildren.push(createBanner(block.title));
       } else if (block.type === 'photo_row' && block.photos) {
         docChildren.push(renderPhotoRowTable(block.photos));
+      } else if (block.type === 'tower_note' && block.noteText) {
+        docChildren.push(
+          new Paragraph({
+            spacing: { before: 40, after: 60 },
+            children: [
+              new TextRun({ text: 'Observações Técnicas: ', bold: true, size: 17, color: '111827' }),
+              new TextRun({ text: block.noteText, size: 17, color: '1F2937' }),
+            ],
+          })
+        );
       }
     });
   });
@@ -925,14 +1011,19 @@ export async function generateReportDocxBlob(
       spacing: { before: 60, after: 80 },
       children: [
         new TextRun({
-          text: '7) CORREÇÕES NECESSÁRIAS PARA PROTEÇÃO DAS EDIFICAÇÕES',
+          text:
+            report.modeloTextos.tituloSecao7 ||
+            '7) CORREÇÕES NECESSÁRIAS PARA PROTEÇÃO DAS EDIFICAÇÕES',
           bold: true,
           size: 22,
           color: '111827',
         }),
       ],
     }),
-    createBanner('Recomendações Técnicas Prioritárias (NBR 5419:2026)'),
+    createBanner(
+      report.modeloTextos.subtituloSecao7 ||
+        'Recomendações Técnicas Prioritárias (NBR 5419:2026)'
+    ),
     new Paragraph({
       spacing: { before: 40, after: 80 },
       children: [
@@ -950,7 +1041,7 @@ export async function generateReportDocxBlob(
           new TextRun({ text: `${rec}\n`, color: 'B91C1C', size: 19 }),
         ]),
         new TextRun({
-          text: `\n${report.fechamentoRecomendacoesPersonalizado || report.modeloTextos.fechamentoRecomendacoes || 'Fazer a correção de todos os itens apontados neste relatório, de forma ao sistema operar em sua perfeita harmonia.'}\n`,
+          text: `\n${report.fechamentoRecomendacoesPersonalizado ?? (report.modeloTextos.fechamentoRecomendacoes || 'Fazer a correção de todos os itens apontados neste relatório, de forma ao sistema operar em sua perfeita harmonia.')}\n`,
           bold: true,
           size: 19,
           color: '111827',
@@ -962,7 +1053,9 @@ export async function generateReportDocxBlob(
       spacing: { before: 80, after: 60 },
       children: [
         new TextRun({
-          text: '8) CONCLUSÃO & PARECER TÉCNICO PERICIAL',
+          text:
+            report.modeloTextos.tituloSecao8 ||
+            '8) CONCLUSÃO & PARECER TÉCNICO PERICIAL',
           bold: true,
           size: 22,
           color: '111827',
@@ -973,19 +1066,19 @@ export async function generateReportDocxBlob(
       spacing: { after: 60 },
       children: [
         new TextRun({
-          text: report.conclusaoPersonalizada || report.modeloTextos.conclusaoFinal,
+          text: report.conclusaoPersonalizada ?? report.modeloTextos.conclusaoFinal,
           size: 19,
           color: '1F2937',
         }),
       ],
     }),
-    ...(report.parecerArtPersonalizado || report.modeloTextos.parecerArt
+    ...((report.parecerArtPersonalizado ?? report.modeloTextos.parecerArt)
       ? [
           new Paragraph({
             spacing: { after: 100 },
             children: [
               new TextRun({
-                text: report.parecerArtPersonalizado || report.modeloTextos.parecerArt || '',
+                text: report.parecerArtPersonalizado ?? report.modeloTextos.parecerArt ?? '',
                 size: 19,
                 bold: true,
                 color: '1F2937',
@@ -1019,13 +1112,13 @@ export async function generateReportDocxBlob(
                   spacing: { before: 20, after: 20 },
                   children: [
                     new TextRun({
-                      text: 'DISPOSIÇÕES FINAIS & VALIDADE DA INSPEÇÃO:\n',
+                      text: `${report.modeloTextos.tituloDisposicoesFinais || 'DISPOSIÇÕES FINAIS & VALIDADE DA INSPEÇÃO:'}\n`,
                       bold: true,
                       size: 19,
                       color: '111827',
                     }),
                     new TextRun({
-                      text: report.disposicoesFinaisPersonalizada || report.modeloTextos.disposicoesFinais,
+                      text: report.disposicoesFinaisPersonalizada ?? report.modeloTextos.disposicoesFinais,
                       size: 18,
                       color: '1F2937',
                     }),
@@ -1102,30 +1195,110 @@ export async function generateReportDocxBlob(
   // Final page ends at conclusion & signature
 
   // ==================== DOCUMENT HEADER & FOOTER DEFINITION ====================
-  const docHeaderParagraphs: Paragraph[] = [];
+  const cabecalho1 =
+    report.empresa.cabecalhoLinha1 !== undefined
+      ? report.empresa.cabecalhoLinha1
+      : report.empresa.nome;
+  const cabecalho2 =
+    report.empresa.cabecalhoLinha2 !== undefined ? report.empresa.cabecalhoLinha2 : '';
 
-  docHeaderParagraphs.push(
-    new Paragraph({
-      spacing: { before: 0, after: 40 },
-      children: [
-        new TextRun({
-          text: report.empresa.nome.toUpperCase(),
-          bold: true,
-          size: 20,
-          color: '111827',
-          font: 'Arial',
-        }),
-        new TextRun({
-          text: `   |   CNPJ: ${report.empresa.cnpj}   |   Tel: ${report.empresa.telefone}\n`,
-          size: 16,
-          color: '4B5563',
-          font: 'Arial',
-        }),
-        new TextRun({
-          text: `${report.empresa.endereco} - ${report.empresa.cidadeUf}`,
-          size: 15,
-          color: '6B7280',
-          font: 'Arial',
+  const noCellBorder = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+  const noBorders = {
+    top: noCellBorder,
+    bottom: noCellBorder,
+    left: noCellBorder,
+    right: noCellBorder,
+    insideHorizontal: noCellBorder,
+    insideVertical: noCellBorder,
+  };
+
+  const leftHeaderParagraphs: Paragraph[] = [];
+  if (cabecalho1) {
+    leftHeaderParagraphs.push(
+      new Paragraph({
+        spacing: { before: 0, after: cabecalho2 ? 20 : 0 },
+        children: [
+          new TextRun({
+            text: cabecalho1.toUpperCase(),
+            bold: true,
+            size: 19,
+            color: '1E293B',
+            font: 'Arial',
+          }),
+        ],
+      })
+    );
+  }
+  if (cabecalho2) {
+    leftHeaderParagraphs.push(
+      new Paragraph({
+        spacing: { before: 0, after: 0 },
+        children: [
+          new TextRun({
+            text: cabecalho2,
+            size: 15,
+            color: '64748B',
+            font: 'Arial',
+          }),
+        ],
+      })
+    );
+  }
+  if (leftHeaderParagraphs.length === 0) {
+    leftHeaderParagraphs.push(new Paragraph({ spacing: { before: 0, after: 0 } }));
+  }
+
+  const rightHeaderParagraph = logoData
+    ? new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { before: 0, after: 0 },
+        children: [
+          new ImageRun({
+            data: logoData.bytes,
+            transformation: {
+              width: logoData.width,
+              height: logoData.height,
+            },
+            type: 'png',
+          }),
+        ],
+      })
+    : new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { before: 0, after: 0 },
+        children: [
+          new TextRun({
+            text: report.empresa.nome.toUpperCase(),
+            bold: true,
+            size: 18,
+            color: '1E293B',
+            font: 'Arial',
+          }),
+        ],
+      });
+
+  const docHeaderChildren: (Paragraph | Table)[] = [
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: noBorders,
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 72, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlignTable.CENTER,
+              borders: noBorders,
+              margins: { top: 0, bottom: 40, left: 0, right: 120 },
+              children: leftHeaderParagraphs,
+            }),
+            new TableCell({
+              width: { size: 28, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlignTable.CENTER,
+              borders: noBorders,
+              margins: { top: 0, bottom: 40, left: 0, right: 0 },
+              children: [rightHeaderParagraph],
+            }),
+          ],
         }),
       ],
     }),
@@ -1134,44 +1307,127 @@ export async function generateReportDocxBlob(
         bottom: { style: BorderStyle.SINGLE, size: 12, color: 'B91C1C' },
       },
       spacing: { before: 0, after: 80 },
-    })
-  );
+    }),
+  ];
 
-  const docFooterParagraphs: Paragraph[] = [
-    new Paragraph({
-      border: {
-        top: { style: BorderStyle.SINGLE, size: 4, color: 'D1D5DB' },
+  const rodape1 =
+    report.empresa.rodapeLinha1 !== undefined
+      ? report.empresa.rodapeLinha1
+      : `${report.empresa.nome} - CNPJ: ${report.empresa.cnpj} – FONE: ${report.empresa.telefone}`;
+  const rodape2 =
+    report.empresa.rodapeLinha2 !== undefined
+      ? report.empresa.rodapeLinha2
+      : `${report.empresa.endereco} – ${report.empresa.cidadeUf}`;
+
+  const footerTopBorder = { style: BorderStyle.SINGLE, size: 6, color: '334155' };
+  const footerCellBorders = {
+    top: footerTopBorder,
+    bottom: noCellBorder,
+    left: noCellBorder,
+    right: noCellBorder,
+  };
+
+  const footerTextParagraphs: Paragraph[] = [];
+  if (rodape1) {
+    footerTextParagraphs.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 20, after: rodape2 ? 10 : 0 },
+        children: [
+          new TextRun({
+            text: rodape1,
+            bold: true,
+            size: 14,
+            color: '1E293B',
+            font: 'Arial',
+          }),
+        ],
+      })
+    );
+  }
+  if (rodape2) {
+    footerTextParagraphs.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 0, after: 0 },
+        children: [
+          new TextRun({
+            text: rodape2,
+            bold: true,
+            size: 14,
+            color: '1E293B',
+            font: 'Arial',
+          }),
+        ],
+      })
+    );
+  }
+  if (footerTextParagraphs.length === 0) {
+    footerTextParagraphs.push(new Paragraph({ spacing: { before: 20, after: 0 } }));
+  }
+
+  const docFooterChildren: (Paragraph | Table)[] = [
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        top: footerTopBorder,
+        bottom: noCellBorder,
+        left: noCellBorder,
+        right: noCellBorder,
+        insideHorizontal: noCellBorder,
+        insideVertical: noCellBorder,
       },
-      spacing: { before: 40, after: 20 },
-      children: [
-        new TextRun({
-          text: 'Laudo de Avaliação do SPDA conforme NBR 5419:2026. Documento pericial de engenharia elétrica.',
-          size: 14,
-          color: '6B7280',
-          font: 'Arial',
-        }),
-        new TextRun({
-          text: '\tPágina ',
-          size: 15,
-          color: '374151',
-          font: 'Arial',
-        }),
-        new TextRun({
-          children: [PageNumber.CURRENT],
-          size: 15,
-          bold: true,
-          font: 'Arial',
-        }),
-        new TextRun({
-          text: ' de ',
-          size: 15,
-          font: 'Arial',
-        }),
-        new TextRun({
-          children: [PageNumber.TOTAL_PAGES],
-          size: 15,
-          bold: true,
-          font: 'Arial',
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 82, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlignTable.CENTER,
+              borders: footerCellBorders,
+              margins: { top: 40, bottom: 0, left: 0, right: 80 },
+              children: footerTextParagraphs,
+            }),
+            new TableCell({
+              width: { size: 18, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlignTable.BOTTOM,
+              borders: footerCellBorders,
+              margins: { top: 40, bottom: 0, left: 0, right: 0 },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.RIGHT,
+                  spacing: { before: 0, after: 0 },
+                  children: [
+                    new TextRun({
+                      text: 'Página ',
+                      size: 14,
+                      color: '475569',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      children: [PageNumber.CURRENT],
+                      size: 14,
+                      bold: true,
+                      color: '334155',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: ' de ',
+                      size: 14,
+                      color: '475569',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      children: [PageNumber.TOTAL_PAGES],
+                      size: 14,
+                      bold: true,
+                      color: '334155',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
         }),
       ],
     }),
@@ -1196,10 +1452,10 @@ export async function generateReportDocxBlob(
           },
         },
         headers: {
-          default: new Header({ children: docHeaderParagraphs }),
+          default: new Header({ children: docHeaderChildren }),
         },
         footers: {
-          default: new Footer({ children: docFooterParagraphs }),
+          default: new Footer({ children: docFooterChildren }),
         },
         children: docChildren,
       },

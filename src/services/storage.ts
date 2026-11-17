@@ -158,22 +158,54 @@ export async function deleteOriginalPhoto(photoId: string): Promise<void> {
   });
 }
 
+export interface PrintQualityResult {
+  dataUrl: string;
+  sizeBytes: number;
+  width: number;
+  height: number;
+}
+
 /**
- * Resizes an image file to a high-resolution print-ready preview for the report
- * while preserving the raw original file untouched in IndexedDB.
+ * Computes approximate binary byte size from a base64 Data URL
  */
-export function createOptimizedPreview(
-  file: File,
-  maxDimension = 2000,
-  quality = 0.94
-): Promise<string> {
+export function getDataUrlByteSize(dataUrl: string): number {
+  const commaIdx = dataUrl.indexOf(',');
+  if (commaIdx === -1) return dataUrl.length;
+  const base64 = dataUrl.slice(commaIdx + 1);
+  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+  return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
+}
+
+/**
+ * Formats byte size into human-readable KB / MB
+ */
+export function formatFileSize(bytes?: number): string {
+  if (!bytes || bytes <= 0) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * Generates Quality #1: Print-Ready Reduced Image for the Report (Laudo).
+ * Resizes large camera images (e.g. 4000px / 5MB) down to ~900px (or 1400px for banners)
+ * at high JPEG print quality (0.90), yielding >350 DPI on A4 while keeping the report
+ * lightweight and fast on mobile devices.
+ * Meanwhile, the raw Original (Quality #2) stays untouched for file/phone saving.
+ */
+export function createPrintQualityImage(
+  file: Blob,
+  maxDimension = 900,
+  quality = 0.9
+): Promise<PrintQualityResult> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      try {
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
 
         if (width > height) {
           if (width > maxDimension) {
@@ -188,25 +220,143 @@ export function createOptimizedPreview(
         }
 
         const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = Math.max(1, width);
+        canvas.height = Math.max(1, height);
         const ctx = canvas.getContext('2d');
+
         if (!ctx) {
-          resolve(e.target?.result as string);
+          URL.revokeObjectURL(objectUrl);
+          const reader = new FileReader();
+          reader.onload = () => {
+            const fallbackUrl = reader.result as string;
+            resolve({
+              dataUrl: fallbackUrl,
+              sizeBytes: getDataUrlByteSize(fallbackUrl),
+              width,
+              height,
+            });
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
           return;
         }
 
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, width, height);
-        // High quality JPEG for crisp document print
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
         const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(dataUrl);
-      };
-      img.onerror = reject;
-      img.src = e.target?.result as string;
+        URL.revokeObjectURL(objectUrl);
+
+        resolve({
+          dataUrl,
+          sizeBytes: getDataUrlByteSize(dataUrl),
+          width: canvas.width,
+          height: canvas.height,
+        });
+      } catch (err) {
+        URL.revokeObjectURL(objectUrl);
+        reject(err);
+      }
     };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+
+    img.onerror = (err) => {
+      URL.revokeObjectURL(objectUrl);
+      reject(err);
+    };
+
+    img.src = objectUrl;
+  });
+}
+
+/**
+ * Resizes an image file to a high-resolution print-ready preview for the report
+ * while preserving the raw original file untouched in IndexedDB.
+ */
+export async function createOptimizedPreview(
+  file: Blob,
+  maxDimension = 900,
+  quality = 0.9
+): Promise<string> {
+  const result = await createPrintQualityImage(file, maxDimension, quality);
+  return result.dataUrl;
+}
+
+/**
+ * Converts any image Blob (fallback from original) into a print-ready JPEG Uint8Array
+ * so Word (.docx) exports never bloat with multi-megabyte raw camera images.
+ */
+export async function downscaleBlobToPrintUint8Array(
+  blob: Blob,
+  maxDimension = 900,
+  quality = 0.9
+): Promise<Uint8Array | null> {
+  try {
+    const result = await createPrintQualityImage(blob, maxDimension, quality);
+    const res = await fetch(result.dataUrl);
+    const smallBlob = await res.blob();
+    const ab = await smallBlob.arrayBuffer();
+    return new Uint8Array(ab);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resizes a custom company logo cleanly onto a transparent PNG canvas
+ * so it stays sharp in PDF and Word (.docx) headers without bloating report JSON.
+ */
+export async function resizeLogoToDataUrl(
+  file: Blob,
+  maxWidth = 600,
+  maxHeight = 240
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      try {
+        const naturalW = img.naturalWidth || 480;
+        const naturalH = img.naturalHeight || 170;
+        const scale = Math.min(1, maxWidth / naturalW, maxHeight / naturalH);
+        const targetW = Math.max(1, Math.round(naturalW * scale));
+        const targetH = Math.max(1, Math.round(naturalH * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(objectUrl);
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('Falha ao ler logotipo'));
+          reader.readAsDataURL(file);
+          return;
+        }
+
+        ctx.clearRect(0, 0, targetW, targetH);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+
+        const dataUrl = canvas.toDataURL('image/png');
+        URL.revokeObjectURL(objectUrl);
+        resolve(dataUrl);
+      } catch (err) {
+        URL.revokeObjectURL(objectUrl);
+        reject(err);
+      }
+    };
+
+    img.onerror = (err) => {
+      URL.revokeObjectURL(objectUrl);
+      reject(err);
+    };
+
+    img.src = objectUrl;
   });
 }

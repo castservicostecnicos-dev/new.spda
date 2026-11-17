@@ -5,7 +5,7 @@
 
 import { SpdaReport, Tower, PhotoItem } from '../types/spda';
 import { getBuildingSampleImages } from '../data/samplePhotos';
-import { DEFAULT_RECIBO, DEFAULT_FIXED_TEXTS } from '../data/defaultReport';
+import { DEFAULT_FIXED_TEXTS } from '../data/defaultReport';
 
 /**
  * Creates high-fidelity 3:4 SVG data URLs for sample repairs
@@ -316,21 +316,65 @@ export function upgradeAndRepairReport(report: SpdaReport): {
     }
   }
 
-  // Ensure recibo data is initialized
-  if (!updated.recibo) {
-    updated.recibo = { ...DEFAULT_RECIBO };
-    modified = true;
-    details.push('Termo de recibo e entrega inicializado');
-  } else {
-    updated.recibo = { ...DEFAULT_RECIBO, ...updated.recibo };
-  }
-
-  // Ensure parecer snippet defaults exist
+  // Ensure parecer & section 4-8 snippet defaults exist
   if (!updated.modeloTextos.fechamentoRecomendacoes) {
     updated.modeloTextos.fechamentoRecomendacoes = DEFAULT_FIXED_TEXTS.fechamentoRecomendacoes;
   }
   if (!updated.modeloTextos.parecerArt) {
     updated.modeloTextos.parecerArt = DEFAULT_FIXED_TEXTS.parecerArt;
+  }
+  if (!updated.modeloTextos.tituloSecao4) {
+    updated.modeloTextos.tituloSecao4 = DEFAULT_FIXED_TEXTS.tituloSecao4;
+  }
+  if (!updated.modeloTextos.tituloSecao5) {
+    updated.modeloTextos.tituloSecao5 = DEFAULT_FIXED_TEXTS.tituloSecao5;
+  }
+  if (!updated.modeloTextos.tituloSecao6Prefixo) {
+    updated.modeloTextos.tituloSecao6Prefixo = DEFAULT_FIXED_TEXTS.tituloSecao6Prefixo;
+  }
+  if (!updated.modeloTextos.subtituloSecao6Ensaio) {
+    updated.modeloTextos.subtituloSecao6Ensaio = DEFAULT_FIXED_TEXTS.subtituloSecao6Ensaio;
+  }
+  if (!updated.modeloTextos.subtituloSecao6Spda) {
+    updated.modeloTextos.subtituloSecao6Spda = DEFAULT_FIXED_TEXTS.subtituloSecao6Spda;
+  }
+  if (!updated.modeloTextos.subtituloSecao6Quadros) {
+    updated.modeloTextos.subtituloSecao6Quadros = DEFAULT_FIXED_TEXTS.subtituloSecao6Quadros;
+  }
+  if (!updated.modeloTextos.tituloSecao7) {
+    updated.modeloTextos.tituloSecao7 = DEFAULT_FIXED_TEXTS.tituloSecao7;
+  }
+  if (!updated.modeloTextos.subtituloSecao7) {
+    updated.modeloTextos.subtituloSecao7 = DEFAULT_FIXED_TEXTS.subtituloSecao7;
+  }
+  if (!updated.modeloTextos.tituloSecao8) {
+    updated.modeloTextos.tituloSecao8 = DEFAULT_FIXED_TEXTS.tituloSecao8;
+  }
+  if (!updated.modeloTextos.tituloDisposicoesFinais) {
+    updated.modeloTextos.tituloDisposicoesFinais = DEFAULT_FIXED_TEXTS.tituloDisposicoesFinais;
+  }
+  if (!updated.instrumentacao.textoIntroducao) {
+    updated.instrumentacao.textoIntroducao = `Foram efetuadas medidas de continuidade elétrica e inspeção visual, com o uso do ${updated.instrumentacao.equipamentoNome}. Os certificados de calibração estão em anexo.`;
+  }
+  if (!updated.instrumentacao.tituloParametrosContinuidades) {
+    updated.instrumentacao.tituloParametrosContinuidades =
+      'PARÂMETROS NORMATIVOS DE CONTINUIDADE (ABNT NBR 5419:2026)';
+  }
+  if (!updated.instrumentacao.tituloDps) {
+    updated.instrumentacao.tituloDps =
+      'PROTEÇÃO CONTRA SURTOS EM QUADROS ELÉTRICOS (ABNT NBR 5410 / NBR 5419-4)';
+  }
+  if (updated.empresa.cabecalhoLinha1 === undefined) {
+    updated.empresa.cabecalhoLinha1 = updated.empresa.nome || 'SJC ENGENHARIA E SOLUÇÕES';
+  }
+  if (updated.empresa.cabecalhoLinha2 === undefined) {
+    updated.empresa.cabecalhoLinha2 = 'Laudo Técnico Pericial de SPDA — ABNT NBR 5419:2026';
+  }
+  if (updated.empresa.rodapeLinha1 === undefined) {
+    updated.empresa.rodapeLinha1 = `${updated.empresa.nome} - CNPJ: ${updated.empresa.cnpj} – FONE: ${updated.empresa.telefone}`;
+  }
+  if (updated.empresa.rodapeLinha2 === undefined) {
+    updated.empresa.rodapeLinha2 = `${updated.empresa.endereco} – ${updated.empresa.cidadeUf}`;
   }
 
   return { report: updated, modified, details };

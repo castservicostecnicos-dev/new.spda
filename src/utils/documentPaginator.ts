@@ -6,9 +6,10 @@
 import { SpdaReport, Tower, PhotoItem } from '../types/spda';
 
 export interface ReportSectionBlock {
-  type: 'tower_header' | 'sub_header' | 'photo_row' | 'empty_row';
+  type: 'tower_header' | 'sub_header' | 'photo_row' | 'tower_note' | 'empty_row';
   title?: string;
   subTitle?: string;
+  noteText?: string;
   towerName?: string;
   towerIndexStr?: string;
   photos?: (PhotoItem | null)[]; // Exactly 5 slots per row
@@ -104,10 +105,36 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
     currentPhotoRowsOnPage += 1;
   }
 
+  const NOTE_COST = 0.25;
+
+  const prefixoSecao6 =
+    report.modeloTextos?.tituloSecao6Prefixo?.trim() || 'VISTORIA & ENSAIOS TÉCNICOS';
+  const subtituloEnsaio =
+    report.modeloTextos?.subtituloSecao6Ensaio?.trim() ||
+    'PONTOS DE ENSAIO DE CONTINUIDADE ÔHMICA (MILIOHMÍMETRO)';
+  const subtituloSpda =
+    report.modeloTextos?.subtituloSecao6Spda?.trim() ||
+    'VISTORIA DO SPDA EXISTENTE, CAPTORES & DESCIDAS';
+  const subtituloQuadros =
+    report.modeloTextos?.subtituloSecao6Quadros?.trim() ||
+    'ANÁLISE DOS QUADROS DE ENERGIA & DPS (ABNT NBR 5410)';
+
+  function addTowerNote(note: string) {
+    if (currentCapacityUsed + NOTE_COST > MAX_CAPACITY_PER_PAGE) {
+      pushPage();
+    }
+    currentPageBlocks.push({
+      type: 'tower_note',
+      noteText: note,
+      heightWeight: NOTE_COST,
+    });
+    currentCapacityUsed += NOTE_COST;
+  }
+
   // Iterate over each Tower in a CONTINUOUS DENSE FLOW without artificial breaks between towers!
   report.torres.forEach((tower, tIndex) => {
     const towerIndexStr = `6.${tIndex + 1}`;
-    const towerTitle = `${towerIndexStr}) VISTORIA & ENSAIOS TÉCNICOS: ${tower.nome.toUpperCase()}`;
+    const towerTitle = `${towerIndexStr}) ${prefixoSecao6}: ${tower.nome.toUpperCase()}`;
 
     // Subsections for this tower
     const subSections: Array<{
@@ -117,17 +144,17 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
     }> = [
       {
         id: 'ensaio',
-        title: `${towerIndexStr}.1) PONTOS DE ENSAIO DE CONTINUIDADE ÔHMICA (MILIOHMÍMETRO)`,
+        title: `${towerIndexStr}.1) ${subtituloEnsaio}`,
         photos: tower.fotosEnsaio,
       },
       {
         id: 'spda',
-        title: `${towerIndexStr}.2) VISTORIA DO SPDA EXISTENTE, CAPTORES & DESCIDAS`,
+        title: `${towerIndexStr}.2) ${subtituloSpda}`,
         photos: tower.fotosSpda,
       },
       {
         id: 'quadros',
-        title: `${towerIndexStr}.3) ANÁLISE DOS QUADROS DE ENERGIA & DPS (ABNT NBR 5410)`,
+        title: `${towerIndexStr}.3) ${subtituloQuadros}`,
         photos: tower.fotosQuadros,
       },
     ];
@@ -177,6 +204,24 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
       });
     });
 
+    if (tower.observacoes && tower.observacoes.trim()) {
+      if (!towerHeaderAdded) {
+        if (currentCapacityUsed + TOWER_HEADER_COST + NOTE_COST > MAX_CAPACITY_PER_PAGE) {
+          pushPage();
+        }
+        currentPageBlocks.push({
+          type: 'tower_header',
+          title: towerTitle,
+          towerName: tower.nome,
+          towerIndexStr,
+          heightWeight: TOWER_HEADER_COST,
+        });
+        currentCapacityUsed += TOWER_HEADER_COST;
+        towerHeaderAdded = true;
+      }
+      addTowerNote(tower.observacoes.trim());
+    }
+
     // NOTE: Between towers, we DO NOT force a page break!
     // If the page still has room, the next tower starts immediately on the same page.
   });
@@ -184,17 +229,17 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
   // Handle common area if enabled (continues on same page if room available)
   if (report.areaComum.habilitada) {
     const commonIndexStr = `6.${report.torres.length + 1}`;
-    const commonTitle = `${commonIndexStr}) VISTORIA & ENSAIOS TÉCNICOS: ${report.areaComum.nome.toUpperCase()}`;
+    const commonTitle = `${commonIndexStr}) ${prefixoSecao6}: ${report.areaComum.nome.toUpperCase()}`;
 
     const commonSubSections = [
       {
         id: 'spda_comum',
-        title: `${commonIndexStr}.2) VISTORIA DO SPDA EXISTENTE, CAPTORES & DESCIDAS`,
+        title: `${commonIndexStr}.2) ${subtituloSpda}`,
         photos: report.areaComum.fotosSpda,
       },
       {
         id: 'quadros_comum',
-        title: `${commonIndexStr}.3) ANÁLISE DOS QUADROS DE ENERGIA & DPS (ABNT NBR 5410)`,
+        title: `${commonIndexStr}.3) ${subtituloQuadros}`,
         photos: report.areaComum.fotosQuadros,
       },
     ];
@@ -238,6 +283,24 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
         addPhotoRow(row);
       });
     });
+
+    if (report.areaComum.observacoes && report.areaComum.observacoes.trim()) {
+      if (!commonHeaderAdded) {
+        if (currentCapacityUsed + TOWER_HEADER_COST + NOTE_COST > MAX_CAPACITY_PER_PAGE) {
+          pushPage();
+        }
+        currentPageBlocks.push({
+          type: 'tower_header',
+          title: commonTitle,
+          towerName: report.areaComum.nome,
+          towerIndexStr: commonIndexStr,
+          heightWeight: TOWER_HEADER_COST,
+        });
+        currentCapacityUsed += TOWER_HEADER_COST;
+        commonHeaderAdded = true;
+      }
+      addTowerNote(report.areaComum.observacoes.trim());
+    }
   }
 
   // Push remaining blocks if any

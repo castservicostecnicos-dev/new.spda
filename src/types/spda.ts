@@ -10,6 +10,10 @@ export interface CompanyProfile {
   endereco: string;
   cidadeUf: string;
   logoUrl?: string; // custom base64 or URL
+  cabecalhoLinha1?: string;
+  cabecalhoLinha2?: string;
+  rodapeLinha1?: string;
+  rodapeLinha2?: string;
   marcaDaguaTexto: string;
   marcaDaguaOpacidade: number;
 }
@@ -50,13 +54,16 @@ export interface ContinuityParam {
 }
 
 export interface InstrumentationData {
+  textoIntroducao?: string;
   equipamentoNome: string;
   equipamentoDescricao: string;
   localMedicao: string;
   correnteEnsaio: string;
   tipoCorrente: string;
   certCalibracaoAnexo: boolean;
+  tituloParametrosContinuidades?: string;
   parametrosContinuidades: ContinuityParam[];
+  tituloDps?: string;
   textoDps: string;
 }
 
@@ -86,10 +93,13 @@ export interface PhotoItem {
   tipoDefeito?: string; // Defeito específico: ex: "FALTA DPS", "CONECTOR OXIDADO", "FALTA EQUIPOTENCIALIZAR", etc.
   leituraMiliohmimetro?: string; // Leitura captada automaticamente do visor (ex: "23.5 mΩ")
   observacao?: string;
-  previewUrl: string; // Base64 ou Blob URL para visualização
+  previewUrl: string; // Versão reduzida em qualidade de impressão carregada no laudo
   storageKey?: string; // Chave no IndexedDB para a imagem original em alta resolução
   nomeArquivoOriginal: string;
-  tamanhoBytes: number;
+  tamanhoBytes: number; // Tamanho do arquivo original salvo nos arquivos
+  tamanhoImpressaoBytes?: number; // Tamanho da imagem reduzida em qualidade de impressão para o laudo
+  dimensaoImpressao?: string; // Ex: "675x900"
+  salvaNoCelular?: boolean; // Indica se a cópia original já foi salva no dispositivo
   tipoMime: string;
   dataHora: number;
   ordem: number;
@@ -137,10 +147,20 @@ export interface FixedTextsTemplate {
   referenciasNormativas: string[];
   dicionario: Array<{ termo: string; definicao: string }>;
   notaCrea: string;
+  tituloSecao4?: string;
+  tituloSecao5?: string;
+  tituloSecao6Prefixo?: string;
+  subtituloSecao6Ensaio?: string;
+  subtituloSecao6Spda?: string;
+  subtituloSecao6Quadros?: string;
+  tituloSecao7?: string;
+  subtituloSecao7?: string;
   recomendacoesPrioritarias: string[];
   fechamentoRecomendacoes?: string;
+  tituloSecao8?: string;
   conclusaoFinal: string;
   parecerArt?: string;
+  tituloDisposicoesFinais?: string;
   disposicoesFinais: string;
 }
 

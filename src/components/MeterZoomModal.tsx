@@ -14,7 +14,10 @@ import {
   ChevronRight,
   Check,
   Eye,
+  Download,
 } from 'lucide-react';
+import { getOriginalPhoto, formatFileSize } from '../services/storage';
+import { saveSingleOriginalToDevice } from '../services/photoExporter';
 
 interface MeterZoomModalProps {
   isOpen: boolean;
@@ -42,16 +45,38 @@ export const MeterZoomModal: React.FC<MeterZoomModalProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // Caption state
+  // Caption & full-res original URL state
   const [currentCaption, setCurrentCaption] = useState<string>('');
+  const [originalObjectUrl, setOriginalObjectUrl] = useState<string | null>(null);
+  const [isSavingOrig, setIsSavingOrig] = useState(false);
 
-  // Sync state when photo changes
+  // Sync state when photo changes and load full-res original from IndexedDB for crisp zoom
   useEffect(() => {
+    let active = true;
+    let createdUrl: string | null = null;
+    setOriginalObjectUrl(null);
+
     if (photo) {
       setZoomLevel(1.2);
       setPan({ x: 0, y: 0 });
       setCurrentCaption(photo.legenda || `Ponto #${photoIndex}`);
+
+      getOriginalPhoto(photo.id)
+        .then((rec) => {
+          if (active && rec?.blob) {
+            createdUrl = URL.createObjectURL(rec.blob);
+            setOriginalObjectUrl(createdUrl);
+          }
+        })
+        .catch(() => {
+          // fallback to previewUrl
+        });
     }
+
+    return () => {
+      active = false;
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
+    };
   }, [photo?.id, photoIndex]);
 
   if (!isOpen || !photo) return null;
@@ -183,7 +208,7 @@ export const MeterZoomModal: React.FC<MeterZoomModalProps> = ({
               onMouseLeave={handleMouseUp}
             >
               <img
-                src={photo.previewUrl}
+                src={originalObjectUrl || photo.previewUrl}
                 alt={photo.legenda || 'Foto ampliada'}
                 className="max-h-[85%] max-w-[85%] object-contain transition-transform duration-75 select-none rounded shadow-md"
                 style={{
@@ -221,6 +246,42 @@ export const MeterZoomModal: React.FC<MeterZoomModalProps> = ({
                 <p className="text-[10px] text-slate-400">
                   Este texto será apresentado abaixo da foto no documento final.
                 </p>
+              </div>
+
+              {/* Dual-Quality Info & Original Phone Download */}
+              <div className="space-y-2.5 bg-slate-900/60 border border-slate-700/60 rounded-xl p-3.5 text-[11px]">
+                <div className="font-bold text-slate-200">Duas Qualidades da Imagem</div>
+                <div className="space-y-1 text-slate-300">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-slate-400">1. No Laudo (Impressão):</span>
+                    <span className="font-mono text-emerald-300 font-semibold">
+                      {photo.dimensaoImpressao || 'Otimizada'}
+                      {photo.tamanhoImpressaoBytes ? ` · ${formatFileSize(photo.tamanhoImpressaoBytes)}` : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-slate-400">2. Arquivo Original:</span>
+                    <span className="font-mono text-sky-300 font-semibold">
+                      {photo.tamanhoBytes ? formatFileSize(photo.tamanhoBytes) : 'Original intacto'}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={isSavingOrig}
+                  onClick={async () => {
+                    setIsSavingOrig(true);
+                    try {
+                      await saveSingleOriginalToDevice(photo, towerName);
+                    } finally {
+                      setIsSavingOrig(false);
+                    }
+                  }}
+                  className="w-full py-2 px-3 bg-sky-600 hover:bg-sky-500 disabled:opacity-60 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{isSavingOrig ? 'Baixando...' : 'Salvar Foto Original no Celular'}</span>
+                </button>
               </div>
             </div>
 
