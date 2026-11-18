@@ -166,10 +166,10 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
   };
 
   const handleFilesSelected = async (
-    files: FileList | null,
+    selectedFiles: File[],
     isFromCamera = false
   ) => {
-    if (!files || files.length === 0) return;
+    if (!selectedFiles || selectedFiles.length === 0) return;
     setIsProcessing(true);
 
     const targetTowerName = isCommon
@@ -179,11 +179,11 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
     const newPhotos: PhotoItem[] = [];
     let savedToPhoneCount = 0;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
       const photoIndex = activePhotos.length + i + 1;
       setProcessingProgress(
-        `Gerando qualidade de impressão e salvando original (${i + 1}/${files.length})...`
+        `Gerando qualidade de impressão e salvando original (${i + 1}/${selectedFiles.length})...`
       );
 
       const photoId = `photo-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -462,8 +462,9 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
           accept="image/*"
           className="hidden"
           onChange={(e) => {
-            handleFilesSelected(e.target.files, false);
+            const selectedFiles = e.target.files ? Array.from(e.target.files) : [];
             e.target.value = '';
+            handleFilesSelected(selectedFiles, false);
           }}
         />
         <input
@@ -473,8 +474,9 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
           capture="environment"
           className="hidden"
           onChange={(e) => {
-            handleFilesSelected(e.target.files, true);
+            const selectedFiles = e.target.files ? Array.from(e.target.files) : [];
             e.target.value = '';
+            handleFilesSelected(selectedFiles, true);
           }}
         />
 
