@@ -131,7 +131,7 @@ export async function generateReportPdfBlob(
   report: SpdaReport,
   onProgress?: (progress: PdfExportProgress) => void
 ): Promise<Blob> {
-  const pageElements = document.querySelectorAll<HTMLElement>('.page-outer-container');
+  const pageElements = document.querySelectorAll<HTMLElement>('.a4-page');
 
   if (!pageElements || pageElements.length === 0) {
     throw new Error(
@@ -140,6 +140,10 @@ export async function generateReportPdfBlob(
   }
 
   const totalPages = pageElements.length;
+  const A4_WIDTH_PX = 794;
+  const A4_WIDTH_MM = 210;
+  const A4_HEIGHT_MM = 297;
+
   // Initialize A4 PDF: 210mm x 297mm
   const pdf = new jsPDF({
     orientation: 'portrait',
@@ -159,27 +163,48 @@ export async function generateReportPdfBlob(
       });
     }
 
-    // Capture the page at 2x resolution for print-quality sharpness
+    // Capture the exact unscaled A4 page at 2x resolution for crisp print fidelity
     const canvas = await html2canvas(pageEl, {
       scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
-      windowWidth: 1200,
+      width: A4_WIDTH_PX,
+      windowWidth: A4_WIDTH_PX,
+      scrollX: 0,
+      scrollY: 0,
       imageTimeout: 15000,
       onclone: (clonedDoc, clonedEl) => {
+        // Reset mobile preview scaling/zoom so the captured page is 100% native 1:1 A4 (794px wide)
+        clonedEl.style.transform = 'none';
+        (clonedEl.style as unknown as { zoom?: string }).zoom = '1';
+        clonedEl.style.position = 'relative';
+        clonedEl.style.top = '0';
+        clonedEl.style.left = '0';
+        clonedEl.style.margin = '0';
+        clonedEl.style.width = `${A4_WIDTH_PX}px`;
+
+        const parent = clonedEl.parentElement;
+        if (parent) {
+          parent.style.width = `${A4_WIDTH_PX}px`;
+          parent.style.height = 'auto';
+          parent.style.overflow = 'visible';
+          parent.style.transform = 'none';
+        }
+
         sanitizeClonedDocumentForHtml2Canvas(clonedDoc, clonedEl);
       },
     });
 
     const imgData = canvas.toDataURL('image/jpeg', 0.94);
+    const imgHeightMm = (canvas.height * A4_WIDTH_MM) / canvas.width;
+    const pageHeightMm = imgHeightMm > A4_HEIGHT_MM + 2 ? imgHeightMm : A4_HEIGHT_MM;
 
     if (i > 0) {
-      pdf.addPage('a4', 'portrait');
+      pdf.addPage([A4_WIDTH_MM, pageHeightMm], 'portrait');
     }
 
-    // A4 dimensions: 210 x 297 mm
-    pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+    pdf.addImage(imgData, 'JPEG', 0, 0, A4_WIDTH_MM, imgHeightMm, undefined, 'FAST');
   }
 
   if (onProgress) {
