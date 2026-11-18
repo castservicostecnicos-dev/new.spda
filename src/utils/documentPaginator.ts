@@ -52,23 +52,38 @@ export function chunkInto5Columns(photos: PhotoItem[]): (PhotoItem | null)[][] {
 export function buildTowerPages(report: SpdaReport, startPageNum = 5): GeneratedReportPage[] {
   const pages: GeneratedReportPage[] = [];
   let currentPageBlocks: ReportSectionBlock[] = [];
-  let currentCapacityUsed = 0;
+  let currentHeightPx = 0;
   let currentPhotoRowsOnPage = 0;
 
-  // Maximum photo rows allowed on any single page: up to 5 full lines of photos
+  // Rule: 5 photos per row, up to 5 rows per page.
+  // If a 5th row would overlap the footer, keep 4 rows and start the next page with that row.
   const MAX_ROWS_PER_PAGE = 5;
 
-  // Calibrated vertical page capacity for dense, compact A4 layout without blank gaps:
-  // - A 3x4 photo row = 1.0 unit (~185px)
-  // - A sub_header banner = 0.12 unit (~20px)
-  // - A tower_header = 0.10 unit (~18px)
-  // - 5 full photo rows = 5.0 <= 5.15 (Fits tightly and cleanly on A4)
-  // - 4 photo rows + 1 tower header + 1 subheader = 4.0 + 0.10 + 0.12 = 4.22 <= 5.15 (Fits with room)
-  // - 4 photo rows + 2 tower headers + 2 subheaders = 4.0 + 0.44 = 4.44 <= 5.15 (Fits: Tower 1 ends & Tower 2 starts on same page)
-  const MAX_CAPACITY_PER_PAGE = 5.15;
-  const TOWER_HEADER_COST = 0.10;
-  const SUB_HEADER_COST = 0.12;
-  const PHOTO_ROW_COST = 1.0;
+  // Exact A4 usable vertical height (297mm = 1122px minus top/bottom padding 45px, header 52px, footer 38px, safety margin 22px):
+  const MAX_CONTENT_HEIGHT_PX = 965;
+  const TOWER_HEADER_PX = 30;
+  const SUB_HEADER_PX = 32;
+  const BASE_PHOTO_ROW_PX = 191; // 185px (3:4 photo at 5-col width) + 6px vertical gap
+  const NOTE_PX = 48;
+
+  // Calculate exact pixel height of a photo row including any observation/yellow alert text below photos
+  function getPhotoRowHeightPx(row: (PhotoItem | null)[]): number {
+    let maxExtraPx = 0;
+    for (const photo of row) {
+      if (!photo) continue;
+      const text = photo.tipoDefeito?.trim() || (photo.destaqueAlerta ? 'FALTA EQUIPOTENCIALIZAR' : '');
+      if (text.length > 0) {
+        // ~22 chars fit per line in a 138px column at 6.5–7px bold
+        const textLines = Math.max(1, Math.ceil((text.length + 2) / 22));
+        const obsLines = photo.observacao ? Math.max(1, Math.ceil(photo.observacao.length / 24)) : 0;
+        const extra = (textLines + obsLines) * 11 + 8;
+        if (extra > maxExtraPx) {
+          maxExtraPx = extra;
+        }
+      }
+    }
+    return BASE_PHOTO_ROW_PX + maxExtraPx;
+  }
 
   function pushPage() {
     if (currentPageBlocks.length > 0) {
@@ -78,34 +93,34 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
         watermarkText: report.empresa.marcaDaguaTexto || 'SPDA 2026',
       });
       currentPageBlocks = [];
-      currentCapacityUsed = 0;
+      currentHeightPx = 0;
       currentPhotoRowsOnPage = 0;
     }
   }
 
-  function canFitPhotoRow(): boolean {
+  function canFitPhotoRow(rowHeightPx: number): boolean {
     if (currentPhotoRowsOnPage >= MAX_ROWS_PER_PAGE) {
       return false;
     }
-    return currentCapacityUsed + PHOTO_ROW_COST <= MAX_CAPACITY_PER_PAGE;
+    return currentHeightPx + rowHeightPx <= MAX_CONTENT_HEIGHT_PX;
   }
 
   function addPhotoRow(row: (PhotoItem | null)[]) {
-    // If another row doesn't fit on this page, push to the next page
-    if (!canFitPhotoRow()) {
+    const rowHeightPx = getPhotoRowHeightPx(row);
+    // If adding this row (e.g., 5th row) would overlap the footer, push current page (4 rows)
+    // and start the next page with this row as the 1st row.
+    if (!canFitPhotoRow(rowHeightPx)) {
       pushPage();
     }
 
     currentPageBlocks.push({
       type: 'photo_row',
       photos: row,
-      heightWeight: PHOTO_ROW_COST,
+      heightWeight: rowHeightPx / BASE_PHOTO_ROW_PX,
     });
-    currentCapacityUsed += PHOTO_ROW_COST;
+    currentHeightPx += rowHeightPx;
     currentPhotoRowsOnPage += 1;
   }
-
-  const NOTE_COST = 0.25;
 
   const prefixoSecao6 =
     report.modeloTextos?.tituloSecao6Prefixo?.trim() || 'VISTORIA & ENSAIOS TÉCNICOS';
@@ -120,15 +135,15 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
     'ANÁLISE DOS QUADROS DE ENERGIA & DPS (ABNT NBR 5410)';
 
   function addTowerNote(note: string) {
-    if (currentCapacityUsed + NOTE_COST > MAX_CAPACITY_PER_PAGE) {
+    if (currentHeightPx + NOTE_PX > MAX_CONTENT_HEIGHT_PX) {
       pushPage();
     }
     currentPageBlocks.push({
       type: 'tower_note',
       noteText: note,
-      heightWeight: NOTE_COST,
+      heightWeight: NOTE_PX / BASE_PHOTO_ROW_PX,
     });
-    currentCapacityUsed += NOTE_COST;
+    currentHeightPx += NOTE_PX;
   }
 
   // Iterate over each Tower in a CONTINUOUS DENSE FLOW without artificial breaks between towers!
@@ -166,13 +181,15 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
       if (photoRows.length === 0) return;
 
       // Cost to start subsection:
-      // (tower header if not yet added) + subheader + at least 1 photo row to prevent orphan title
+      // (tower header if not yet added) + subheader + 1st photo row to prevent orphan title
       const needsTowerHeader = !towerHeaderAdded;
-      const initialCost = (needsTowerHeader ? TOWER_HEADER_COST : 0) + SUB_HEADER_COST + PHOTO_ROW_COST;
+      const firstRowHeightPx = getPhotoRowHeightPx(photoRows[0]);
+      const initialHeightPx =
+        (needsTowerHeader ? TOWER_HEADER_PX : 0) + SUB_HEADER_PX + firstRowHeightPx;
 
       // If the initial block (header + 1st row) does not fit on current page or current page already has max rows:
       if (
-        currentCapacityUsed + initialCost > MAX_CAPACITY_PER_PAGE ||
+        currentHeightPx + initialHeightPx > MAX_CONTENT_HEIGHT_PX ||
         currentPhotoRowsOnPage >= MAX_ROWS_PER_PAGE
       ) {
         pushPage();
@@ -184,9 +201,9 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
           title: towerTitle,
           towerName: tower.nome,
           towerIndexStr,
-          heightWeight: TOWER_HEADER_COST,
+          heightWeight: TOWER_HEADER_PX / BASE_PHOTO_ROW_PX,
         });
-        currentCapacityUsed += TOWER_HEADER_COST;
+        currentHeightPx += TOWER_HEADER_PX;
         towerHeaderAdded = true;
       }
 
@@ -194,11 +211,11 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
       currentPageBlocks.push({
         type: 'sub_header',
         title: sub.title,
-        heightWeight: SUB_HEADER_COST,
+        heightWeight: SUB_HEADER_PX / BASE_PHOTO_ROW_PX,
       });
-      currentCapacityUsed += SUB_HEADER_COST;
+      currentHeightPx += SUB_HEADER_PX;
 
-      // Add each photo row, packing up to 5 rows per page
+      // Add each photo row, packing up to 5 rows per page without ever overlapping the footer
       photoRows.forEach((row) => {
         addPhotoRow(row);
       });
@@ -206,7 +223,7 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
 
     if (tower.observacoes && tower.observacoes.trim()) {
       if (!towerHeaderAdded) {
-        if (currentCapacityUsed + TOWER_HEADER_COST + NOTE_COST > MAX_CAPACITY_PER_PAGE) {
+        if (currentHeightPx + TOWER_HEADER_PX + NOTE_PX > MAX_CONTENT_HEIGHT_PX) {
           pushPage();
         }
         currentPageBlocks.push({
@@ -214,9 +231,9 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
           title: towerTitle,
           towerName: tower.nome,
           towerIndexStr,
-          heightWeight: TOWER_HEADER_COST,
+          heightWeight: TOWER_HEADER_PX / BASE_PHOTO_ROW_PX,
         });
-        currentCapacityUsed += TOWER_HEADER_COST;
+        currentHeightPx += TOWER_HEADER_PX;
         towerHeaderAdded = true;
       }
       addTowerNote(tower.observacoes.trim());
@@ -251,10 +268,12 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
       if (photoRows.length === 0) return;
 
       const needsCommonHeader = !commonHeaderAdded;
-      const initialCost = (needsCommonHeader ? TOWER_HEADER_COST : 0) + SUB_HEADER_COST + PHOTO_ROW_COST;
+      const firstRowHeightPx = getPhotoRowHeightPx(photoRows[0]);
+      const initialHeightPx =
+        (needsCommonHeader ? TOWER_HEADER_PX : 0) + SUB_HEADER_PX + firstRowHeightPx;
 
       if (
-        currentCapacityUsed + initialCost > MAX_CAPACITY_PER_PAGE ||
+        currentHeightPx + initialHeightPx > MAX_CONTENT_HEIGHT_PX ||
         currentPhotoRowsOnPage >= MAX_ROWS_PER_PAGE
       ) {
         pushPage();
@@ -266,18 +285,18 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
           title: commonTitle,
           towerName: report.areaComum.nome,
           towerIndexStr: commonIndexStr,
-          heightWeight: TOWER_HEADER_COST,
+          heightWeight: TOWER_HEADER_PX / BASE_PHOTO_ROW_PX,
         });
-        currentCapacityUsed += TOWER_HEADER_COST;
+        currentHeightPx += TOWER_HEADER_PX;
         commonHeaderAdded = true;
       }
 
       currentPageBlocks.push({
         type: 'sub_header',
         title: sub.title,
-        heightWeight: SUB_HEADER_COST,
+        heightWeight: SUB_HEADER_PX / BASE_PHOTO_ROW_PX,
       });
-      currentCapacityUsed += SUB_HEADER_COST;
+      currentHeightPx += SUB_HEADER_PX;
 
       photoRows.forEach((row) => {
         addPhotoRow(row);
@@ -286,7 +305,7 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
 
     if (report.areaComum.observacoes && report.areaComum.observacoes.trim()) {
       if (!commonHeaderAdded) {
-        if (currentCapacityUsed + TOWER_HEADER_COST + NOTE_COST > MAX_CAPACITY_PER_PAGE) {
+        if (currentHeightPx + TOWER_HEADER_PX + NOTE_PX > MAX_CONTENT_HEIGHT_PX) {
           pushPage();
         }
         currentPageBlocks.push({
@@ -294,9 +313,9 @@ export function buildTowerPages(report: SpdaReport, startPageNum = 5): Generated
           title: commonTitle,
           towerName: report.areaComum.nome,
           towerIndexStr: commonIndexStr,
-          heightWeight: TOWER_HEADER_COST,
+          heightWeight: TOWER_HEADER_PX / BASE_PHOTO_ROW_PX,
         });
-        currentCapacityUsed += TOWER_HEADER_COST;
+        currentHeightPx += TOWER_HEADER_PX;
         commonHeaderAdded = true;
       }
       addTowerNote(report.areaComum.observacoes.trim());
