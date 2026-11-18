@@ -13,119 +13,9 @@ export interface PdfExportProgress {
   status: string;
 }
 
-// Reusable 1x1 canvas to convert any modern CSS color (oklch, oklab, color-mix, etc.) to standard rgba()
-let colorCanvasCtx: CanvasRenderingContext2D | null = null;
-const colorCache = new Map<string, string>();
-
-function cssColorToRgba(cssColor: string): string {
-  const cached = colorCache.get(cssColor);
-  if (cached) return cached;
-
-  try {
-    if (!colorCanvasCtx) {
-      const c = document.createElement('canvas');
-      c.width = 1;
-      c.height = 1;
-      colorCanvasCtx = c.getContext('2d', { willReadFrequently: true });
-    }
-    if (!colorCanvasCtx) return '#000000';
-
-    colorCanvasCtx.clearRect(0, 0, 1, 1);
-    colorCanvasCtx.fillStyle = '#000000';
-    colorCanvasCtx.fillStyle = cssColor;
-    colorCanvasCtx.fillRect(0, 0, 1, 1);
-    const [r, g, b, a] = colorCanvasCtx.getImageData(0, 0, 1, 1).data;
-    const rgba =
-      a === 255
-        ? `rgb(${r}, ${g}, ${b})`
-        : `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(3)})`;
-    colorCache.set(cssColor, rgba);
-    return rgba;
-  } catch {
-    return '#000000';
-  }
-}
-
-const UNSUPPORTED_COLOR_REGEX = /\b(?:oklch|oklab|lab|lch|color-mix|color)\([^()]*(?:\([^()]*\)[^()]*)*\)/gi;
-
-function sanitizeCssText(cssText: string): string {
-  if (!/(?:oklch|oklab|color-mix|color\()/i.test(cssText)) return cssText;
-  return cssText.replace(UNSUPPORTED_COLOR_REGEX, (match) => cssColorToRgba(match));
-}
-
-function sanitizeClonedDocumentForHtml2Canvas(clonedDoc: Document, clonedRoot: HTMLElement): void {
-  // 1. Convert any external <link rel="stylesheet"> (e.g. Vite production Tailwind v4 bundle)
-  //    into sanitized inline <style> tags so zero oklch()/oklab() rules remain in stylesheets.
-  const linkTags = Array.from(clonedDoc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'));
-  for (const linkEl of linkTags) {
-    try {
-      const href = linkEl.href;
-      // Find matching stylesheet in the live document to read its CSS rules
-      const matchingSheet = Array.from(document.styleSheets).find((s) => s.href === href);
-      if (matchingSheet && matchingSheet.cssRules) {
-        const rawCss = Array.from(matchingSheet.cssRules)
-          .map((r) => r.cssText)
-          .join('\n');
-        const cleanCss = sanitizeCssText(rawCss);
-        const inlineStyle = clonedDoc.createElement('style');
-        inlineStyle.textContent = cleanCss;
-        linkEl.parentNode?.insertBefore(inlineStyle, linkEl);
-        linkEl.remove();
-      }
-    } catch {
-      // Cross-origin stylesheet (e.g., Google Fonts) — safe to ignore, no oklch
-    }
-  }
-
-  // 2. Sanitize all <style> tags in the cloned document
-  const styleTags = clonedDoc.querySelectorAll('style');
-  styleTags.forEach((styleEl) => {
-    if (styleEl.textContent && /(?:oklch|oklab|lab\(|lch\(|color-mix|color\()/i.test(styleEl.textContent)) {
-      styleEl.textContent = sanitizeCssText(styleEl.textContent);
-    }
-  });
-
-  // 3. Sanitize computed color properties on html, body, and all elements inside the captured page
-  const win = clonedDoc.defaultView || window;
-  const colorProps = [
-    'color',
-    'backgroundColor',
-    'borderTopColor',
-    'borderRightColor',
-    'borderBottomColor',
-    'borderLeftColor',
-    'outlineColor',
-    'textDecorationColor',
-  ] as const;
-
-  const allNodes: HTMLElement[] = [
-    clonedDoc.documentElement,
-    clonedDoc.body,
-    clonedRoot,
-    ...Array.from(clonedRoot.querySelectorAll<HTMLElement>('*')),
-  ].filter(Boolean);
-
-  for (const el of allNodes) {
-    const computed = win.getComputedStyle(el);
-    for (const prop of colorProps) {
-      const val = computed[prop];
-      if (val && /(?:oklch|oklab|lab\(|lch\(|color-mix|color\()/i.test(val)) {
-        el.style[prop] = cssColorToRgba(val);
-      }
-    }
-    if (computed.boxShadow && /(?:oklch|oklab|lab\(|lch\(|color-mix|color\()/i.test(computed.boxShadow)) {
-      el.style.boxShadow = 'none';
-    }
-    if (computed.backgroundImage && /(?:oklch|oklab|lab\(|lch\(|color-mix|color\()/i.test(computed.backgroundImage)) {
-      el.style.backgroundImage = sanitizeCssText(computed.backgroundImage);
-    }
-  }
-}
-
 /**
  * Generates a high-quality PDF Blob directly from the rendered DOM pages of PdfDocumentView.
- * This produces an actual .pdf file that can be sent via WhatsApp, E-mail, Web Share,
- * or downloaded directly without opening the browser's printer dialog.
+ * Uses html2canvas-pro (native oklch/oklab support) capturing each .a4-page at exact 1:1 A4 size.
  */
 export async function generateReportPdfBlob(
   report: SpdaReport,
@@ -174,7 +64,7 @@ export async function generateReportPdfBlob(
       scrollX: 0,
       scrollY: 0,
       imageTimeout: 15000,
-      onclone: (clonedDoc, clonedEl) => {
+      onclone: (_clonedDoc, clonedEl) => {
         // Reset mobile preview scaling/zoom so the captured page is 100% native 1:1 A4 (794px wide)
         clonedEl.style.transform = 'none';
         (clonedEl.style as unknown as { zoom?: string }).zoom = '1';
@@ -183,6 +73,7 @@ export async function generateReportPdfBlob(
         clonedEl.style.left = '0';
         clonedEl.style.margin = '0';
         clonedEl.style.width = `${A4_WIDTH_PX}px`;
+        clonedEl.style.backgroundColor = '#ffffff';
 
         const parent = clonedEl.parentElement;
         if (parent) {
@@ -190,9 +81,8 @@ export async function generateReportPdfBlob(
           parent.style.height = 'auto';
           parent.style.overflow = 'visible';
           parent.style.transform = 'none';
+          parent.style.backgroundColor = '#ffffff';
         }
-
-        sanitizeClonedDocumentForHtml2Canvas(clonedDoc, clonedEl);
       },
     });
 
