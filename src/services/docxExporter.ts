@@ -383,33 +383,53 @@ export async function generateReportDocxBlob(
           );
         }
 
-        // Check for defect alert
-        const defectText =
-          photo.tipoDefeito ||
-          (photo.destaqueAlerta
-            ? photo.legenda.toUpperCase().includes('FALTA')
-              ? photo.legenda
-              : 'FALTA EQUIPOTENCIALIZAR'
-            : '');
-        const isAlert =
-          !!defectText ||
-          photo.destaqueAlerta ||
-          photo.legenda.toUpperCase().includes('FALTA EQUIPOTENCIALIZAR');
+        // Indication below photo (no captions; plain text for normal ID, yellow highlight for defects)
+        const rawIndication = photo.tipoDefeito?.trim() || '';
+        const normalIds = new Set([
+          'CAPTOR TIPO FRANKLIN',
+          'MEDIÇÃO DO MILIOHMÍMETRO',
+          'PONTO DE INSPEÇÃO',
+          'PONTO DE ATERRAMENTO',
+        ]);
+        const isNormalOnly =
+          rawIndication.length > 0 &&
+          rawIndication
+            .split(',')
+            .map((s) => s.trim().toUpperCase())
+            .filter(Boolean)
+            .every((item) => normalIds.has(item));
+        const isDefectAlert = !isNormalOnly && (!!rawIndication || !!photo.destaqueAlerta);
 
-        const isSpdaOrQuadros =
-          photo.categoria === 'spda_captores' ||
-          photo.categoria === 'quadros_dps' ||
-          photo.categoria === 'area_comum';
-
-        if (isAlert) {
+        if (isNormalOnly) {
           cellParagraphs.push(
             new Paragraph({
               alignment: AlignmentType.CENTER,
               spacing: { before: 20, after: 40 },
               children: [
                 new TextRun({
-                  text: `⚠ ${defectText || 'FALTA EQUIPOTENCIALIZAR'}`,
+                  text: rawIndication,
                   size: 14, // 7pt
+                  bold: true,
+                  color: '1F2937',
+                  font: 'Arial',
+                }),
+              ],
+            })
+          );
+        } else if (isDefectAlert) {
+          cellParagraphs.push(
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { before: 20, after: 40 },
+              shading: {
+                fill: 'FEF3C7',
+                type: ShadingType.CLEAR,
+                color: 'auto',
+              },
+              children: [
+                new TextRun({
+                  text: `⚠ ${rawIndication || 'FALTA EQUIPOTENCIALIZAR'}`,
+                  size: 13, // 6.5pt
                   bold: true,
                   color: '92400E',
                   font: 'Arial',
@@ -425,23 +445,6 @@ export async function generateReportDocxBlob(
                       }),
                     ]
                   : []),
-              ],
-            })
-          );
-        } else if (!isSpdaOrQuadros && photo.legenda) {
-          // Only inspection points with meter readings get normal captions
-          cellParagraphs.push(
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              spacing: { before: 20, after: 40 },
-              children: [
-                new TextRun({
-                  text: photo.legenda,
-                  size: 14,
-                  bold: false,
-                  color: '1F2937',
-                  font: 'Arial',
-                }),
               ],
             })
           );

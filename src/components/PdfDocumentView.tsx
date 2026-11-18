@@ -96,24 +96,49 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
                 />
               </div>
 
-              {/* Caption immediately below photo */}
+              {/* Indication immediately below photo (no captions; plain text for normal ID, yellow bar for defects) */}
               <div className="w-full text-center mt-0.5 px-0.5 leading-tight">
-                {photo.destaqueAlerta || photo.tipoDefeito || photo.legenda.toUpperCase().includes('FALTA EQUIPOTENCIALIZAR') ? (
-                  <div className="inline-block bg-[#fef3c7] text-[#92400e] border border-[#fde68a] px-1 py-0.2 rounded-[2px] text-[7px] font-bold uppercase tracking-tight max-w-full">
-                    <span className="truncate block">
-                      ⚠ {photo.tipoDefeito || (photo.legenda.toUpperCase().includes('FALTA') ? photo.legenda : 'FALTA EQUIPOTENCIALIZAR')}
-                    </span>
-                    {photo.observacao && (
-                      <div className="text-[6.5px] normal-case font-medium text-amber-900 block truncate">
-                        {photo.observacao}
+                {(() => {
+                  const rawText = photo.tipoDefeito?.trim() || '';
+                  const normalIds = new Set([
+                    'CAPTOR TIPO FRANKLIN',
+                    'MEDIÇÃO DO MILIOHMÍMETRO',
+                    'PONTO DE INSPEÇÃO',
+                    'PONTO DE ATERRAMENTO',
+                  ]);
+                  const isNormalOnly =
+                    rawText.length > 0 &&
+                    rawText
+                      .split(',')
+                      .map((s) => s.trim().toUpperCase())
+                      .filter(Boolean)
+                      .every((item) => normalIds.has(item));
+
+                  if (isNormalOnly) {
+                    return (
+                      <span className="text-[7px] font-semibold text-slate-900 uppercase tracking-tight block leading-tight">
+                        {rawText}
+                      </span>
+                    );
+                  }
+
+                  if (photo.destaqueAlerta || rawText.length > 0) {
+                    return (
+                      <div className="inline-block bg-[#fef3c7] text-[#92400e] border border-[#fde68a] px-1 py-0.5 rounded-[2px] text-[6.5px] font-bold uppercase tracking-tight max-w-full leading-tight">
+                        <span className="block break-words">
+                          ⚠ {rawText || 'FALTA EQUIPOTENCIALIZAR'}
+                        </span>
+                        {photo.observacao && (
+                          <div className="text-[6px] normal-case font-medium text-amber-900 block break-words">
+                            {photo.observacao}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ) : photo.categoria === 'ensaio_miliohmimetro' ? (
-                  <span className="text-[7.5px] font-medium text-slate-900 block truncate">
-                    {photo.legenda}
-                  </span>
-                ) : null}
+                    );
+                  }
+
+                  return null;
+                })()}
               </div>
             </div>
           );

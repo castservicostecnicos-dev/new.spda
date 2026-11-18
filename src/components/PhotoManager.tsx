@@ -54,12 +54,30 @@ interface PhotoManagerProps {
   onSaveAllOriginals?: () => void;
 }
 
-// Preset defect lists per user specification
+// Items that are neutral identification only (no yellow alert bar)
+export const NORMAL_IDENTIFICATION_ITEMS = new Set<string>([
+  'CAPTOR TIPO FRANKLIN',
+  'MEDIÇÃO DO MILIOHMÍMETRO',
+  'PONTO DE INSPEÇÃO',
+  'PONTO DE ATERRAMENTO',
+]);
+
+export function isNormalOnlyObservation(value?: string): boolean {
+  if (!value || !value.trim()) return false;
+  const items = value
+    .split(',')
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean);
+  return items.length > 0 && items.every((item) => NORMAL_IDENTIFICATION_ITEMS.has(item));
+}
+
+// Preset quick-access lists per category
 export const DEFECTS_BY_CATEGORY: Record<PhotoCategory, string[]> = {
   quadros_dps: [
     'FALTA DPS',
   ],
   spda_captores: [
+    'CAPTOR TIPO FRANKLIN',
     'FALTA EQUIPOTENCIALIZAR',
     'CONECTOR OXIDADO',
     'CONECTOR COM TINTA',
@@ -70,43 +88,25 @@ export const DEFECTS_BY_CATEGORY: Record<PhotoCategory, string[]> = {
     'TERMINAIS AÉREOS COM DEFEITO',
   ],
   ensaio_miliohmimetro: [
+    'Medição do miliohmímetro',
+    'Ponto de inspeção',
+    'Ponto de aterramento',
+    'Ponto de inspeção obstruído por vegetação',
+    'Ponto de inspeção aterrado',
+    'Não foi possível localizar o ponto de inspeção',
     'LIMPEZA PENDENTE',
     'ALTA RESISTÊNCIA (> 0,20 Ω)',
     'TERMINAL OXIDADO',
     'SEM CONTINUIDADE',
   ],
   area_comum: [
+    'CAPTOR TIPO FRANKLIN',
     'FALTA EQUIPOTENCIALIZAR',
     'CONECTOR OXIDADO',
     'CONECTOR COM TINTA',
     'MALHA/FITA DE CAPTAÇÃO COM TINTA',
+    'PARAFUSO OXIDADO',
     'FALTA DPS',
-  ],
-};
-
-const PRESET_CAPTIONS: Record<PhotoCategory, string[]> = {
-  ensaio_miliohmimetro: [
-    'Ponto de Inspeção SPDA',
-    'Caixa de Inspeção',
-    'Barramento de Equipotencialização',
-    'Eletrodo de Aterramento',
-  ],
-  spda_captores: [
-    'Captor tipo Franklin',
-    'Descida SPDA externa',
-    'Fita de Captação no Topo',
-    'Anel de Cintamento',
-  ],
-  quadros_dps: [
-    'QGBT Principal',
-    'Quadro de Bombas',
-    'Quadro de Elevadores',
-    'Barramento BEP',
-  ],
-  area_comum: [
-    'Registro técnico - Área Comum',
-    'SPDA Área Comum',
-    'Quadro de Bombas e Iluminação',
   ],
 };
 
@@ -208,16 +208,15 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
         // QUALIDADE 1 (Impressão para o Laudo): Reduz dimensões para grade 3:4 do laudo (~900px, 300+ DPI)
         const printResult = await createPrintQualityImage(file, 900, 0.9);
 
-        // Legenda padrão
-        let defaultCaption = `${targetTowerName} - Foto #${photoIndex}`;
-        if (activeCategory === 'ensaio_miliohmimetro') {
-          defaultCaption = `Ponto #${photoIndex}`;
-        } else if (
-          activeCategory === 'spda_captores' ||
-          activeCategory === 'quadros_dps' ||
-          activeCategory === 'area_comum'
+        // Legenda padrão: não carrega legenda automaticamente nos pontos de inspeção/medição
+        let defaultCaption = '';
+        if (
+          activeCategory !== 'ensaio_miliohmimetro' &&
+          activeCategory !== 'spda_captores' &&
+          activeCategory !== 'quadros_dps' &&
+          activeCategory !== 'area_comum'
         ) {
-          defaultCaption = '';
+          defaultCaption = `${targetTowerName} - Foto #${photoIndex}`;
         }
 
         newPhotos.push({
@@ -293,19 +292,38 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
     updatePhotosState(copy);
   };
 
-  // Set or toggle a specific defect for a photo
+  const parseCommaList = (value?: string): string[] => {
+    if (!value) return [];
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  // Toggle a defect/observation item (supports selecting multiple items joined by ", ")
   const handleSelectDefect = (photo: PhotoItem, defect: string | undefined) => {
-    if (!defect || defect === '' || photo.tipoDefeito === defect) {
-      // Clear defect
+    if (!defect || defect === '') {
+      handleUpdateItem(photo.id, {
+        destaqueAlerta: false,
+        tipoDefeito: undefined,
+      });
+      return;
+    }
+
+    const current = parseCommaList(photo.tipoDefeito);
+    const exists = current.includes(defect);
+    const next = exists ? current.filter((item) => item !== defect) : [...current, defect];
+
+    if (next.length === 0) {
       handleUpdateItem(photo.id, {
         destaqueAlerta: false,
         tipoDefeito: undefined,
       });
     } else {
-      // Set defect and enable highlight
+      const combined = next.join(', ');
       handleUpdateItem(photo.id, {
-        destaqueAlerta: true,
-        tipoDefeito: defect,
+        destaqueAlerta: !isNormalOnlyObservation(combined),
+        tipoDefeito: combined,
       });
     }
   };
@@ -739,11 +757,17 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
                       <span>Ampliar Visor</span>
                     </div>
 
-                    {/* Prominent Yellow Highlight Badge when Defect is Active */}
+                    {/* Highlight Badge: Yellow for defects to fix, neutral plain label for normal identification */}
                     {hasDefect && (
-                      <div className="absolute top-1 left-1 right-1 bg-[#fef3c7] text-[#92400e] border border-[#fde68a] rounded text-[8.5px] font-extrabold px-1.5 py-0.5 text-center shadow-xs truncate z-10">
-                        ⚠ {photo.tipoDefeito || 'FALTA EQUIPOTENCIALIZAR'}
-                      </div>
+                      isNormalOnlyObservation(photo.tipoDefeito) ? (
+                        <div className="absolute top-1 left-1 right-1 bg-white/95 text-slate-900 border border-slate-300 rounded text-[8.5px] font-bold px-1.5 py-0.5 text-center shadow-xs truncate z-10">
+                          {photo.tipoDefeito}
+                        </div>
+                      ) : (
+                        <div className="absolute top-1 left-1 right-1 bg-[#fef3c7] text-[#92400e] border border-[#fde68a] rounded text-[8.5px] font-extrabold px-1.5 py-0.5 text-center shadow-xs truncate z-10">
+                          ⚠ {photo.tipoDefeito || 'FALTA EQUIPOTENCIALIZAR'}
+                        </div>
+                      )
                     )}
                   </div>
 
@@ -770,51 +794,12 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
                     <span>Ampliar Foto</span>
                   </button>
 
-                  {/* For Ensaio: Caption for the point. For SPDA & Quadros: captions eliminated, only yellow alert */}
-                  {activeCategory === 'ensaio_miliohmimetro' ? (
-                    <>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-600 block">
-                          Legenda do Ponto no Laudo
-                        </label>
-                        <input
-                          type="text"
-                          value={photo.legenda}
-                          onChange={(e) => handleUpdateItem(photo.id, { legenda: e.target.value })}
-                          className="w-full border border-slate-300 rounded p-1 text-[11px] focus:ring-1 focus:ring-red-500 font-medium text-slate-900"
-                          placeholder={`Ex: Ponto #${idx + 1}`}
-                        />
-                      </div>
-
-                      <div className="flex flex-wrap gap-1">
-                        {PRESET_CAPTIONS[activeCategory]?.slice(0, 3).map((preset) => (
-                          <button
-                            key={preset}
-                            type="button"
-                            onClick={() =>
-                              handleUpdateItem(photo.id, {
-                                legenda: preset,
-                              })
-                            }
-                            className="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded truncate max-w-full"
-                          >
-                            {preset}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-[9.5px] text-slate-500 italic bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                      Legenda eliminada nesta seção — apenas o alerta em amarelo será exibido se houver defeito.
-                    </div>
-                  )}
-
-                  {/* Defect Picker (Highlight Selector) */}
-                  <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                  {/* Unified Observation / Identification Picker (Multi-select for ALL categories; no captions) */}
+                  <div className="pt-1 border-t border-slate-100 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="text-[10px] font-bold text-slate-700 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3 text-amber-600" />
-                        <span>Destaque de Defeito:</span>
+                        <span>Indicação / Observação (múltipla escolha):</span>
                       </label>
                       {hasDefect && (
                         <button
@@ -822,44 +807,52 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
                           onClick={() => handleSelectDefect(photo, undefined)}
                           className="text-[9px] text-red-600 hover:underline font-semibold"
                         >
-                          Remover
+                          Limpar
                         </button>
                       )}
                     </div>
 
-                    {/* Defect Selection Dropdown */}
-                    <select
+                    {/* Editable combined observation input */}
+                    <input
+                      type="text"
                       value={photo.tipoDefeito || ''}
-                      onChange={(e) => handleSelectDefect(photo, e.target.value)}
-                      className={`w-full text-[10px] rounded p-1 border font-medium ${
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const trimmed = val.trim();
+                        handleUpdateItem(photo.id, {
+                          destaqueAlerta: trimmed.length > 0 && !isNormalOnlyObservation(trimmed),
+                          tipoDefeito: trimmed.length > 0 ? val : undefined,
+                        });
+                      }}
+                      placeholder="(Sem indicação — clique nas opções abaixo)"
+                      className={`w-full text-[10px] rounded p-1.5 border font-medium ${
                         hasDefect
-                          ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold'
+                          ? isNormalOnlyObservation(photo.tipoDefeito)
+                            ? 'border-slate-400 bg-slate-50 text-slate-900 font-bold'
+                            : 'border-amber-400 bg-amber-50 text-amber-950 font-bold'
                           : 'border-slate-300 bg-white text-slate-700'
                       }`}
-                    >
-                      <option value="">(Normal / Sem Defeito)</option>
-                      {currentDefectList.map((defect) => (
-                        <option key={defect} value={defect}>
-                          ⚠ {defect}
-                        </option>
-                      ))}
-                    </select>
+                    />
 
-                    {/* Quick Defect Buttons */}
+                    {/* Multi-select Quick Access Buttons */}
                     <div className="flex flex-wrap gap-1 pt-0.5">
                       {currentDefectList.map((defect) => {
-                        const isSelected = photo.tipoDefeito === defect;
+                        const selectedDefects = parseCommaList(photo.tipoDefeito);
+                        const isSelected = selectedDefects.includes(defect);
+                        const isNormalItem = NORMAL_IDENTIFICATION_ITEMS.has(defect.toUpperCase());
                         return (
                           <button
                             key={defect}
                             type="button"
                             onClick={() => handleSelectDefect(photo, defect)}
-                            className={`text-[8.5px] px-1.5 py-0.5 rounded font-bold transition-all text-left truncate max-w-full ${
+                            className={`text-[8.5px] px-1.5 py-0.5 rounded font-bold transition-all text-left leading-tight ${
                               isSelected
-                                ? 'bg-amber-300 text-amber-950 border border-amber-500 shadow-2xs'
+                                ? isNormalItem
+                                  ? 'bg-slate-800 text-white border border-slate-900 shadow-2xs'
+                                  : 'bg-amber-300 text-amber-950 border border-amber-500 shadow-2xs'
                                 : 'bg-slate-100 hover:bg-amber-100/70 text-slate-700 border border-slate-200'
                             }`}
-                            title={`Selecionar: ${defect}`}
+                            title={isSelected ? `Remover: ${defect}` : `Adicionar: ${defect}`}
                           >
                             {isSelected ? '✓ ' : '+ '}
                             {defect}
