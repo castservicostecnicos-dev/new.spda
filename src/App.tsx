@@ -1075,12 +1075,12 @@ export default function App() {
                 {/* Aerial */}
                 <div className="space-y-2">
                   <span className="font-bold text-slate-700">3.1) Vista Aérea / Imagem Satélite</span>
-                  <div className="w-full h-36 bg-slate-100 border border-slate-300 rounded overflow-hidden flex items-center justify-center">
+                  <div className="w-full min-h-[9rem] bg-slate-100 border border-slate-300 rounded overflow-hidden flex items-center justify-center">
                     {report.edificacao.fotoAereaUrl ? (
                       <img
                         src={report.edificacao.fotoAereaUrl}
                         alt="Vista Aérea"
-                        className="w-full h-full object-cover"
+                        className="w-full h-auto block"
                       />
                     ) : (
                       <span className="text-slate-400">Nenhuma imagem carregada</span>
@@ -1095,12 +1095,17 @@ export default function App() {
                       if (!file) return;
                       try {
                         await saveOriginalPhoto(`edificacao-aerea-${report.id}`, file, file.name);
-                        const printImg = await createPrintQualityImage(file, 1400, 0.9);
+                        const originalDataUrl = await new Promise<string>((resolve, reject) => {
+                          const reader = new FileReader();
+                          reader.onload = () => resolve(reader.result as string);
+                          reader.onerror = () => reject(new Error('Falha ao ler imagem'));
+                          reader.readAsDataURL(file);
+                        });
                         setReport((prev) => ({
                           ...prev,
                           edificacao: {
                             ...prev.edificacao,
-                            fotoAereaUrl: printImg.dataUrl,
+                            fotoAereaUrl: originalDataUrl,
                           },
                         }));
                       } catch (err) {
@@ -1114,12 +1119,12 @@ export default function App() {
                 {/* Facade */}
                 <div className="space-y-2">
                   <span className="font-bold text-slate-700">3.2) Fachada Principal do Condomínio</span>
-                  <div className="w-full h-36 bg-slate-100 border border-slate-300 rounded overflow-hidden flex items-center justify-center">
+                  <div className="w-full min-h-[9rem] bg-slate-100 border border-slate-300 rounded overflow-hidden flex items-center justify-center">
                     {report.edificacao.fotoFachadaUrl ? (
                       <img
                         src={report.edificacao.fotoFachadaUrl}
                         alt="Fachada Principal"
-                        className="w-full h-full object-cover"
+                        className="w-full h-auto block"
                       />
                     ) : (
                       <span className="text-slate-400">Nenhuma imagem carregada</span>
@@ -1134,12 +1139,17 @@ export default function App() {
                       if (!file) return;
                       try {
                         await saveOriginalPhoto(`edificacao-fachada-${report.id}`, file, file.name);
-                        const printImg = await createPrintQualityImage(file, 1400, 0.9);
+                        const originalDataUrl = await new Promise<string>((resolve, reject) => {
+                          const reader = new FileReader();
+                          reader.onload = () => resolve(reader.result as string);
+                          reader.onerror = () => reject(new Error('Falha ao ler imagem'));
+                          reader.readAsDataURL(file);
+                        });
                         setReport((prev) => ({
                           ...prev,
                           edificacao: {
                             ...prev.edificacao,
-                            fotoFachadaUrl: printImg.dataUrl,
+                            fotoFachadaUrl: originalDataUrl,
                           },
                         }));
                       } catch (err) {

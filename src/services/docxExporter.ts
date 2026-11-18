@@ -145,6 +145,44 @@ async function loadLogoForDocx(customLogoUrl?: string): Promise<DocxLogoData | n
   }
 }
 
+interface FullWidthDocxImage {
+  bytes: Uint8Array;
+  width: number;
+  height: number;
+}
+
+/**
+ * Loads an image at its full original resolution (no downscaling) and computes
+ * proportional dimensions spanning the full usable A4 page width (~696px).
+ */
+async function loadFullWidthImageForDocx(
+  url: string,
+  targetWidth = 696
+): Promise<FullWidthDocxImage | null> {
+  const bytes = await urlToUint8Array(url);
+  if (!bytes) return null;
+
+  const dims = await new Promise<{ w: number; h: number }>((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      resolve({
+        w: img.naturalWidth || targetWidth,
+        h: img.naturalHeight || Math.round(targetWidth * 0.56),
+      });
+    };
+    img.onerror = () => resolve({ w: targetWidth, h: Math.round(targetWidth * 0.56) });
+    img.src = url;
+  });
+
+  const proportionalHeight = Math.max(1, Math.round(targetWidth * (dims.h / dims.w)));
+  return {
+    bytes,
+    width: targetWidth,
+    height: proportionalHeight,
+  };
+}
+
 /**
  * Generates the complete SPDA Report as a Word (.docx) Blob
  * perfectly matching the visual structure, layout, typography,
@@ -156,16 +194,16 @@ export async function generateReportDocxBlob(
 ): Promise<Blob> {
   if (onProgress) onProgress('Preparando estrutura do documento Word (.docx)...');
 
-  // Convert aerial and facade photos if available
-  let fotoAereaBytes: Uint8Array | null = null;
-  let fotoFachadaBytes: Uint8Array | null = null;
+  // Convert aerial and facade photos at full page width keeping exact proportions
+  let fotoAereaData: FullWidthDocxImage | null = null;
+  let fotoFachadaData: FullWidthDocxImage | null = null;
   let assinaturaBytes: Uint8Array | null = null;
 
   if (report.edificacao.fotoAereaUrl) {
-    fotoAereaBytes = await urlToUint8Array(report.edificacao.fotoAereaUrl);
+    fotoAereaData = await loadFullWidthImageForDocx(report.edificacao.fotoAereaUrl, 696);
   }
   if (report.edificacao.fotoFachadaUrl) {
-    fotoFachadaBytes = await urlToUint8Array(report.edificacao.fotoFachadaUrl);
+    fotoFachadaData = await loadFullWidthImageForDocx(report.edificacao.fotoFachadaUrl, 696);
   }
   if (report.responsavelTecnico.assinaturaUrl) {
     assinaturaBytes = await urlToUint8Array(report.responsavelTecnico.assinaturaUrl);
@@ -717,15 +755,18 @@ export async function generateReportDocxBlob(
     createBanner('3.1) VISTA AÉREA DA EDIFICAÇÃO / IMAGEM SATÉLITE')
   );
 
-  if (fotoAereaBytes) {
+  if (fotoAereaData) {
     docChildren.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { before: 60, after: 30 },
         children: [
           new ImageRun({
-            data: fotoAereaBytes,
-            transformation: { width: 340, height: 145 },
+            data: fotoAereaData.bytes,
+            transformation: {
+              width: fotoAereaData.width,
+              height: fotoAereaData.height,
+            },
             type: 'png',
           }),
         ],
@@ -752,15 +793,18 @@ export async function generateReportDocxBlob(
     createBanner('3.2) FACHADA PRINCIPAL DA EDIFICAÇÃO / CONDOMÍNIO')
   );
 
-  if (fotoFachadaBytes) {
+  if (fotoFachadaData) {
     docChildren.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { before: 60, after: 30 },
         children: [
           new ImageRun({
-            data: fotoFachadaBytes,
-            transformation: { width: 340, height: 140 },
+            data: fotoFachadaData.bytes,
+            transformation: {
+              width: fotoFachadaData.width,
+              height: fotoFachadaData.height,
+            },
             type: 'png',
           }),
         ],

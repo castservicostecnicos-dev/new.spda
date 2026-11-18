@@ -123,29 +123,42 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
   };
 
   // Reusable page shell with absolute positioning and top-left transform-origin to prevent horizontal scroll
-  const renderPageShell = (pageNumber: number, content: React.ReactNode) => (
+  const renderPageShell = (
+    pageNumber: number,
+    content: React.ReactNode,
+    allowGrow = false
+  ) => (
     <div
       key={`page-outer-${pageNumber}`}
       id={`laudo-page-${pageNumber}`}
       className="page-outer-container relative mx-auto my-3 print:my-0 shadow-md print:shadow-none bg-white rounded-xs"
       style={{
         width: `${displayWidth}px`,
-        height: `${displayHeight}px`,
-        overflow: 'hidden',
+        ...(allowGrow
+          ? { minHeight: `${displayHeight}px`, height: 'auto', overflow: 'visible' }
+          : { height: `${displayHeight}px`, overflow: 'hidden' }),
       }}
     >
       <div
         className="a4-page relative bg-white px-[10mm] pt-[7mm] pb-[5mm] flex flex-col justify-between"
         style={{
           width: `${a4WidthPx}px`,
-          height: `${a4HeightPx}px`,
           minHeight: `${a4HeightPx}px`,
-          maxHeight: `${a4HeightPx}px`,
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          transform: `scale(${scale})`,
-          transformOrigin: 'top left',
+          ...(allowGrow
+            ? {
+                height: 'auto',
+                position: 'relative',
+                zoom: scale !== 1 ? scale : undefined,
+              }
+            : {
+                height: `${a4HeightPx}px`,
+                maxHeight: `${a4HeightPx}px`,
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+              }),
         }}
       >
         <DocumentWatermark
@@ -447,11 +460,11 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
               <SectionBanner size="sm">
                 3.1) VISTA AÉREA DA EDIFICAÇÃO / IMAGEM SATÉLITE
               </SectionBanner>
-              <div className="w-full h-48 bg-slate-100 border border-slate-300 rounded-[2px] overflow-hidden flex flex-col items-center justify-center">
+              <div className="w-full bg-slate-100 border border-slate-300 rounded-[2px] overflow-hidden">
                 <img
                   src={fotoAereaPreview || report.edificacao.fotoAereaUrl}
                   alt={report.edificacao.fotoAereaLegenda}
-                  className="w-full h-full object-cover"
+                  className="w-full h-auto block"
                 />
               </div>
               <p className="text-center text-[8.5px] text-slate-700 font-medium">
@@ -489,11 +502,11 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
               <SectionBanner size="sm">
                 3.2) FACHADA PRINCIPAL DA EDIFICAÇÃO / CONDOMÍNIO
               </SectionBanner>
-              <div className="w-full h-44 bg-slate-100 border border-slate-300 rounded-[2px] overflow-hidden flex flex-col items-center justify-center">
+              <div className="w-full bg-slate-100 border border-slate-300 rounded-[2px] overflow-hidden">
                 <img
                   src={fotoFachadaPreview || report.edificacao.fotoFachadaUrl}
                   alt={report.edificacao.fotoFachadaLegenda}
-                  className="w-full h-full object-cover"
+                  className="w-full h-auto block"
                 />
               </div>
               <p className="text-center text-[8.5px] text-slate-700 font-medium">
@@ -519,7 +532,8 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
                 {report.edificacao.historicoOcorrenciasComplemento}
               </p>
             </div>
-          </div>
+          </div>,
+          true
         )}
 
         {/* ========================================================
