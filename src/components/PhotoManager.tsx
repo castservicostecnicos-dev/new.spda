@@ -60,6 +60,8 @@ export const NORMAL_IDENTIFICATION_ITEMS = new Set<string>([
   'MEDIÇÃO DO MILIOHMÍMETRO',
   'PONTO DE INSPEÇÃO',
   'PONTO DE ATERRAMENTO',
+  'OK. QUADRO COM DPS',
+  'CENTRO DE MEDIÇÃO',
 ]);
 
 export function isNormalOnlyObservation(value?: string): boolean {
@@ -75,6 +77,9 @@ export function isNormalOnlyObservation(value?: string): boolean {
 export const DEFECTS_BY_CATEGORY: Record<PhotoCategory, string[]> = {
   quadros_dps: [
     'FALTA DPS',
+    'FALTA DPS DE ANTENA',
+    'OK. Quadro com DPS',
+    'Centro de medição',
   ],
   spda_captores: [
     'CAPTOR TIPO FRANKLIN',

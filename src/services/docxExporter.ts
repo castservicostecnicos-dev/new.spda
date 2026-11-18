@@ -390,6 +390,8 @@ export async function generateReportDocxBlob(
           'MEDIÇÃO DO MILIOHMÍMETRO',
           'PONTO DE INSPEÇÃO',
           'PONTO DE ATERRAMENTO',
+          'OK. QUADRO COM DPS',
+          'CENTRO DE MEDIÇÃO',
         ]);
         const isNormalOnly =
           rawIndication.length > 0 &&

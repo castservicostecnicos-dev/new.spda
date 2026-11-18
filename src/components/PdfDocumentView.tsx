@@ -105,6 +105,8 @@ export const PdfDocumentView: React.FC<PdfDocumentViewProps> = ({
                     'MEDIÇÃO DO MILIOHMÍMETRO',
                     'PONTO DE INSPEÇÃO',
                     'PONTO DE ATERRAMENTO',
+                    'OK. QUADRO COM DPS',
+                    'CENTRO DE MEDIÇÃO',
                   ]);
                   const isNormalOnly =
                     rawText.length > 0 &&
