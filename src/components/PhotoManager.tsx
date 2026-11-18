@@ -112,6 +112,9 @@ export const DEFECTS_BY_CATEGORY: Record<PhotoCategory, string[]> = {
     'MALHA/FITA DE CAPTAÇÃO COM TINTA',
     'PARAFUSO OXIDADO',
     'FALTA DPS',
+    'FALTA DPS DE ANTENA',
+    'OK. Quadro com DPS',
+    'Centro de medição',
   ],
 };
 
@@ -346,9 +349,10 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
       return;
     }
 
+    const isNormal = isNormalOnlyObservation(defect);
     const updated = activePhotos.map((p) => ({
       ...p,
-      destaqueAlerta: true,
+      destaqueAlerta: !isNormal,
       tipoDefeito: defect,
     }));
     updatePhotosState(updated);
@@ -631,13 +635,36 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
             <span className="font-bold text-slate-800">Ações Rápidas:</span>
 
             {activeCategory === 'quadros_dps' && (
-              <button
-                type="button"
-                onClick={() => handleBatchApplyDefect('FALTA DPS')}
-                className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-md font-bold text-[11px] transition-colors"
-              >
-                ⚠ Marcar &quot;FALTA DPS&quot; em Todas
-              </button>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleBatchApplyDefect('FALTA DPS')}
+                  className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-md font-bold text-[11px] transition-colors"
+                >
+                  ⚠ Marcar &quot;FALTA DPS&quot; em Todas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBatchApplyDefect('FALTA DPS DE ANTENA')}
+                  className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-md font-bold text-[11px] transition-colors"
+                >
+                  ⚠ Marcar &quot;FALTA DPS DE ANTENA&quot; em Todas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBatchApplyDefect('OK. Quadro com DPS')}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-md font-bold text-[11px] transition-colors"
+                >
+                  OK. Quadro com DPS (Todas)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBatchApplyDefect('Centro de medição')}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-md font-bold text-[11px] transition-colors"
+                >
+                  Centro de medição (Todas)
+                </button>
+              </div>
             )}
 
             {activeCategory === 'spda_captores' && (
